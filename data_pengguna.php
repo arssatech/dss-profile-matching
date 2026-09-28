@@ -1,121 +1,119 @@
 <?php
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/config/database.php';
 
-include('config.php');
+use App\Middleware\AuthMiddleware;
+use App\Middleware\CsrfMiddleware;
 
-include('auth.php'); // Add a semicolon here
+// Proteksi Halaman Khusus Admin
+AuthMiddleware::checkAdmin();
 
-// CREATE
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_create'])) {
-    // Only proceed if the user is logged in as admin
-    if (isAdmin()) {
-        $nama_pengguna = $_POST['nama_pengguna'];
-        $username = $_POST['username'];
-        $password = $_POST['password'];
-        $role = $_POST['role']; // Ambil peran dari formulir
+$csrfToken = CsrfMiddleware::generateToken();
+$db = Database::getConnection();
 
-        // Enkripsi password sebelum menyimpannya ke database
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-        // Query untuk menyimpan data pengguna ke dalam database
-        $query = "INSERT INTO pengguna (nama_pengguna, username, password, role) VALUES ('$nama_pengguna', '$username', '$hashed_password', '$role')";
-
-        if ($conn->query($query) === TRUE) {
-            echo "Data pengguna berhasil ditambahkan.";
-        } else {
-            echo "Error: " . $query . "<br>" . $conn->error;
-        }
-    } else {
-        echo "Anda tidak memiliki izin untuk menambahkan pengguna.";
-    }
-}
-
-// READ
-$query = "SELECT * FROM pengguna";
-$result = $conn->query($query);
+// Fetch Data Pengguna
+$stmt = $db->query("SELECT id_pengguna, username, role FROM pengguna ORDER BY id_pengguna ASC");
+$penggunaList = $stmt->fetchAll();
 ?>
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Pengguna</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <title>Manajemen Pengguna - SPK Profile Matching</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="container">
-        <h1>Data Pengguna</h1>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nama Pengguna</th>
-                    <th>Username</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                if ($result->num_rows > 0) {
-                    while ($row = $result->fetch_assoc()) {
-                        echo "<tr>
-                                <td>" . $row['id_pengguna'] . "</td>
-                                <td>" . $row['nama_pengguna'] . "</td>
-                                <td>" . $row['username'] . "</td>
-                                <td>";
-                        // Check if the user is logged in as admin
-                        if (isAdmin()) {
-                            echo "<a href='edit_pengguna.php?id=" . $row['id_pengguna'] . "' class='btn btn-primary'>Edit</a>
-                                    <a href='delete_pengguna.php?id=" . $row['id_pengguna'] . "' class='btn btn-danger'>Delete</a>";
-                        } else {
-                            echo "Anda tidak memiliki izin untuk mengedit atau menghapus pengguna.";
-                        }
-                        echo "</td>
-                            </tr>";
-                    }
-                } else {
-                    echo "<tr><td colspan='5'>Tidak ada data pengguna.</td></tr>";
-                }
-                ?>
-            </tbody>
-        </table>
-        <?php if (isAdmin()): ?>
-        <h2>Tambah Data Pengguna</h2>
-        <form method="POST" action="">
-            <div class="form-group">
-                <label for="nama_pengguna">Nama Pengguna:</label>
-                <input type="text" name="nama_pengguna" class="form-control" required>
+<body class="bg-light">
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Manajemen Pengguna System</h3>
+            <div>
+                <a href="dashboard.php" class="btn btn-secondary me-2">Dashboard</a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambah">
+                    + Tambah Pengguna
+                </button>
             </div>
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" name="username" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" name="password" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="role">Role:</label>
-                <select name="role" class="form-control" required>
-                    <option value="0">User</option>
-                    <option value="1">Admin</option>
-                </select>
-            </div>
-            <!-- Only show the submit button if the user is logged in as admin -->
-            
-                <button type="submit" name="submit_create" class="btn btn-success">Tambah Data</button>
-            <?php endif; ?>
-        </form>
+        </div>
 
-        <a href="dashboard.php" class="btn btn-primary mt-3">Kembali ke Dashboard</a>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <table class="table table-bordered table-striped align-middle mb-0">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th>Username</th>
+                            <th style="width: 180px;">Role</th>
+                            <th style="width: 150px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($penggunaList)): ?>
+                            <?php foreach ($penggunaList as $row): ?>
+                                <tr>
+                                    <td><?= $row['id_pengguna'] ?></td>
+                                    <td><strong><?= htmlspecialchars($row['username']) ?></strong></td>
+                                    <td>
+                                        <span class="badge bg-<?= $row['role'] === 'admin' ? 'danger' : 'success' ?>">
+                                            <?= strtoupper(htmlspecialchars($row['role'])) ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="delete_pengguna.php?id_pengguna=<?= $row['id_pengguna'] ?>" 
+                                           class="btn btn-sm btn-danger" 
+                                           onclick="return confirm('Yakin ingin menghapus pengguna ini?')">Hapus</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Belum ada data pengguna.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Modal Tambah Pengguna -->
+    <div class="modal fade" id="modalTambah" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="create_pengguna.php" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tambah Pengguna Baru</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" name="username" id="username" required autocomplete="off">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" name="password" id="password" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role Akses</label>
+                            <select class="form-select" name="role" id="role" required>
+                                <option value="admin">Admin</option>
+                                <option value="user">User / Evaluator</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-<?php
-$conn->close();
-?>

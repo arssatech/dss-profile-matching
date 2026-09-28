@@ -1,0 +1,2860 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+algo1.php
+algo2_perhitungan.php
+algo3.php
+auth.php
+config.php
+create_alternatif.php
+create_aspek.php
+create_hasil_akhir.php
+create_kriteria.php
+create_penilaian.php
+dashboard.php
+data_alternatif.php
+data_aspek.php
+data_hasil_akhir.php
+data_kriteria.php
+data_pengguna.php
+delete_alternatif.php
+delete_aspek.php
+delete_kriteria.php
+delete_pengguna.php
+edit_alternatif.php
+edit_aspek.php
+edit_kriteria.php
+edit_pengguna.php
+get_alternatif.php
+get_kriteria.php
+index.php
+login.php
+logout.php
+navbar.php
+perhitungan.php
+README.md
+register.php
+unauthorize.php
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+# Repomix & Documentation Output
+repomix-output.*
+
+# Environment & Temp Files
+*.log
+.env
+.DS_Store
+
+# IDE & Editor Files
+.vscode/
+.idea/
+</file>
+
+<file path="algo1.php">
+<?php
+include('config.php');
+
+// Check if POST data is set
+if(isset($_POST['nilai_kriteria'])) {
+    // Ambil data penilaian dari form
+    $nilai_kriteria = $_POST['nilai_kriteria'];
+
+    // Hitung nilai gap dan ubah menjadi bobot
+    $bobot_kriteria = array();
+    foreach ($nilai_kriteria as $id_alternatif => $kriteria) {
+        echo "<h2>Perhitungan untuk Alternatif $id_alternatif:</h2>";
+        foreach ($kriteria as $id_kriteria => $nilai) {
+            // Ambil nilai target dan jenis factor dari database
+            $queryInfo = $conn->query("SELECT nilai_target, jenis_factor, id_aspek FROM kriteria WHERE id_kriteria = $id_kriteria");
+            if($queryInfo) {
+                $info_data = $queryInfo->fetch_assoc();
+                $target = $info_data['nilai_target'];
+                $jenis_factor = $info_data['jenis_factor'];
+                $id_aspek = $info_data['id_aspek'];
+
+                // Hitung gap
+                $gap = $nilai - $target;
+
+                // Output
+                echo "<p>Nilai kriteria $id_kriteria: $nilai</p>";
+                echo "<p>Nilai target: $target</p>";
+                echo "<p>Jenis factor: $jenis_factor</p>";
+                echo "<p>Gap: $gap</p>";
+
+                // Ubah gap menjadi bobot berdasarkan pemetaan yang telah ditentukan
+                switch ($gap) {
+                    case 0:
+                        $bobot = 5;
+                        break;
+                    case 1:
+                        $bobot = 5;
+                        break;
+                    case -1:
+                        $bobot = 4;
+                        break;
+                    case 2:
+                        $bobot = 5;
+                        break;
+                    case -2:
+                        $bobot = 3;
+                        break;
+                    case 3:
+                        $bobot = 5;
+                        break;
+                    case -3:
+                        $bobot = 2;
+                        break;
+                    case 4:
+                        $bobot = 5;
+                        break;
+                    case -4:
+                        $bobot = 1;
+                        break;
+                    default:
+                        $bobot = 0; // Default jika gap tidak sesuai dengan daftar
+                        break;
+                }
+
+                // Output
+                echo "<p>Bobot: $bobot</p>";
+                echo "<hr>";
+
+                // Menyimpan informasi jenis factor (CF atau SF) ke dalam array bobot
+                $bobot_kriteria[$id_aspek][$id_kriteria][] = array(
+                    'alternatif' => $id_alternatif,
+                    'gap' => $gap,
+                    'bobot' => $bobot,
+                    'jenis_factor' => $jenis_factor
+                );
+            } else {
+                // Handle jika query tidak berhasil dieksekusi
+                echo "Error: " . $conn->error;
+            }
+        }
+    }
+
+    // Hitung nilai CF dan SF per aspek untuk setiap alternatif
+    $nilaiCF = array(); // Array untuk menyimpan nilai CF
+    $nilaiSF = array(); // Array untuk menyimpan nilai SF
+    foreach ($bobot_kriteria as $id_aspek => $aspek) {
+        echo "<h2>Perhitungan untuk Aspek $id_aspek:</h2>";
+        foreach ($aspek as $id_kriteria => $kriteria) {
+            foreach ($kriteria as $info) {
+                // Tentukan jenis factor (CF atau SF)
+                if ($info['jenis_factor'] == 'core') {
+                    // Tambahkan nilai bobot CF
+                    if (!isset($nilaiCF[$id_aspek][$info['alternatif']])) {
+                        $nilaiCF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiCF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                } elseif ($info['jenis_factor'] == 'secondary') {
+                    // Tambahkan nilai bobot SF
+                    if (!isset($nilaiSF[$id_aspek][$info['alternatif']])) {
+                        $nilaiSF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiSF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                }
+            }
+        }
+        // Output
+        echo "<p>Nilai CF untuk Aspek $id_aspek:</p>";
+        print_r($nilaiCF[$id_aspek]);
+        echo "<p>Nilai SF untuk Aspek $id_aspek:</p>";
+        print_r($nilaiSF[$id_aspek]);
+        echo "<hr>";
+    }
+
+    // Bagi nilai CF dengan jumlah CF alternatif di setiap aspek
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        $jumlah_cf_alternatif = count($nilai_cf_per_aspek);
+        foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+            $nilaiCF[$id_aspek][$alternatif] /= $jumlah_cf_alternatif;
+        }
+    }
+
+    // Bagi nilai SF dengan jumlah SF alternatif di setiap aspek
+    foreach ($nilaiSF as $id_aspek => $nilai_sf_per_aspek) {
+        $jumlah_sf_alternatif = count($nilai_sf_per_aspek);
+        foreach ($nilai_sf_per_aspek as $alternatif => $nilai_sf) {
+            $nilaiSF[$id_aspek][$alternatif] /= $jumlah_sf_alternatif;
+        }
+    }
+
+    // Hitung hasil akhir berdasarkan bobot CF dan SF
+    $hasilAkhir = array();
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+            // Hitung hasil akhir untuk setiap alternatif di aspek tersebut
+            $hasilAkhir[$id_aspek][$alternatif] = ($nilai_cf * 0.55) + ($nilaiSF[$id_aspek][$alternatif] * 0.45);
+        }
+    }
+
+    // Ambil nilai aspek dari database dan ubah menjadi persentase
+    $queryAspek = $conn->query("SELECT id_aspek, bobot FROM aspek");
+    if($queryAspek) {
+        $aspek_data = $queryAspek->fetch_all(MYSQLI_ASSOC);
+        $total_bobot = array_sum(array_column($aspek_data, 'bobot'));
+        $nilaiAspek = array();
+        foreach ($aspek_data as $data) {
+            $nilaiAspek[$data['id_aspek']] = $data['bobot'] / $total_bobot; // Ubah bobot menjadi desimal
+        }
+
+        // Hitung hasil perankingan
+        $perankingan = array();
+        foreach ($hasilAkhir as $id_aspek => $hasil_per_aspek) {
+            foreach ($hasil_per_aspek as $alternatif => $hasil) {
+                // Kalikan hasil akhir dengan nilai aspek dan jumlahkan per aspek
+                if (!isset($perankingan[$alternatif])) {
+                    $perankingan[$alternatif] = 0;
+                }
+                $perankingan[$alternatif] += $hasil * $nilaiAspek[$id_aspek];
+            }
+        }
+
+        // Tampilkan hasil perankingan tiap alternatif
+        echo "<h2>Perankingan Tiap Alternatif</h2>";
+        echo "<table border='1'><tr><th>Alternatif</th><th>Nilai Perankingan</th></tr>";
+        foreach ($perankingan as $alternatif => $hasil) {
+            echo "<tr><td>Alternatif $alternatif</td><td>$hasil</td></tr>";
+        }
+        echo "</table>";
+
+        // Tampilkan tombol kembali ke halaman dashboard
+        echo '<a href="dashboard.php" class="btn btn-primary">Kembali ke Dashboard</a>';
+    } else {
+        // Handle jika query nilai aspek tidak berhasil dieksekusi
+        echo "Error: " . $conn->error;
+    }
+
+} else {
+    // Handle jika POST data tidak terdefinisi atau tidak lengkap
+    // Misalnya, tampilkan pesan kesalahan atau alihkan pengguna ke halaman lain
+    echo "Error: Incomplete or undefined POST data.";
+}
+?>
+</file>
+
+<file path="algo2_perhitungan.php">
+<?php
+
+
+include('config.php');
+
+var_dump($_POST);
+
+// Inisialisasi $hasilAkhir agar tidak terjadi error saat digunakan di HTML
+$hasilAkhir = [];
+
+// Check if POST data is set
+if(isset($_POST['nilai_kriteria'])) {
+    // Ambil data penilaian dari form
+    $nilai_kriteria = $_POST['nilai_kriteria'];
+
+    // Hitung nilai gap dan ubah menjadi bobot
+    $bobot_kriteria = array();
+    foreach ($nilai_kriteria as $id_alternatif => $kriteria) {
+        echo "<h2>Perhitungan untuk Alternatif $id_alternatif:</h2>";
+        foreach ($kriteria as $id_kriteria => $nilai) {
+            // Ambil nilai target dan jenis factor dari database
+            $queryInfo = $conn->query("SELECT nilai_target, jenis_factor, id_aspek FROM kriteria WHERE id_kriteria = $id_kriteria");
+            if($queryInfo) {
+                $info_data = $queryInfo->fetch_assoc();
+                $target = $info_data['nilai_target'];
+                $jenis_factor = $info_data['jenis_factor'];
+                $id_aspek = $info_data['id_aspek'];
+
+                // Hitung gap
+                $gap = $nilai - $target;
+
+                // Output
+                echo "<p>Nilai kriteria $id_kriteria: $nilai</p>";
+                echo "<p>Nilai target: $target</p>";
+                echo "<p>Jenis factor: $jenis_factor</p>";
+                echo "<p>Gap: $gap</p>";
+
+                // Ubah gap menjadi bobot berdasarkan pemetaan yang telah ditentukan
+                switch ($gap) {
+                    case 0:
+                        $bobot = 5;
+                        break;
+                    case 1:
+                        $bobot = 5;
+                        break;
+                    case -1:
+                        $bobot = 4;
+                        break;
+                    case 2:
+                        $bobot = 5;
+                        break;
+                    case -2:
+                        $bobot = 3;
+                        break;
+                    case 3:
+                        $bobot = 5;
+                        break;
+                    case -3:
+                        $bobot = 2;
+                        break;
+                    case 4:
+                        $bobot = 5;
+                        break;
+                    case -4:
+                        $bobot = 1;
+                        break;
+                    default:
+                        $bobot = 0; // Default jika gap tidak sesuai dengan daftar
+                        break;
+                }
+
+                // Output
+                echo "<p>Bobot: $bobot</p>";
+                echo "<hr>";
+
+                // Menyimpan informasi jenis factor (CF atau SF) ke dalam array bobot
+                $bobot_kriteria[$id_aspek][$id_kriteria][] = array(
+                    'alternatif' => $id_alternatif,
+                    'gap' => $gap,
+                    'bobot' => $bobot,
+                    'jenis_factor' => $jenis_factor
+                );
+            } else {
+                // Handle jika query tidak berhasil dieksekusi
+                echo "Error: " . $conn->error;
+            }
+        }
+    }
+
+    // Hitung nilai CF dan SF per aspek untuk setiap alternatif
+    $nilaiCF = array(); // Array untuk menyimpan nilai CF
+    $nilaiSF = array(); // Array untuk menyimpan nilai SF
+    foreach ($bobot_kriteria as $id_aspek => $aspek) {
+        echo "<h2>Perhitungan untuk Aspek $id_aspek:</h2>";
+        foreach ($aspek as $id_kriteria => $kriteria) {
+            foreach ($kriteria as $info) {
+                // Tentukan jenis factor (CF atau SF)
+                if ($info['jenis_factor'] == 'core') {
+                    // Tambahkan nilai bobot CF
+                    if (!isset($nilaiCF[$id_aspek][$info['alternatif']])) {
+                        $nilaiCF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiCF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                } elseif ($info['jenis_factor'] == 'secondary') {
+                    // Tambahkan nilai bobot SF
+                    if (!isset($nilaiSF[$id_aspek][$info['alternatif']])) {
+                        $nilaiSF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiSF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                }
+            }
+        }
+        // Output
+        echo "<p>Nilai CF untuk Aspek $id_aspek:</p>";
+        print_r($nilaiCF[$id_aspek]);
+        echo "<p>Nilai SF untuk Aspek $id_aspek:</p>";
+        print_r($nilaiSF[$id_aspek]);
+        echo "<hr>";
+    }
+
+    // Bagi nilai CF dengan jumlah CF alternatif di setiap aspek
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        $jumlah_cf_alternatif = count($nilai_cf_per_aspek);
+        foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+            $nilaiCF[$id_aspek][$alternatif] /= $jumlah_cf_alternatif;
+        }
+    }
+
+    // Bagi nilai SF dengan jumlah SF alternatif di setiap aspek
+    foreach ($nilaiSF as $id_aspek => $nilai_sf_per_aspek) {
+        $jumlah_sf_alternatif = count($nilai_sf_per_aspek);
+        foreach ($nilai_sf_per_aspek as $alternatif => $nilai_sf) {
+            $nilaiSF[$id_aspek][$alternatif] /= $jumlah_sf_alternatif;
+        }
+    }
+
+    // Hitung hasil akhir berdasarkan bobot CF dan SF
+    $hasilAkhir = array();
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+            // Hitung hasil akhir untuk setiap alternatif di aspek tersebut
+            $hasilAkhir[$id_aspek][$alternatif] = ($nilai_cf * 0.55) + ($nilaiSF[$id_aspek][$alternatif] * 0.45);
+        }
+    }
+}
+
+// Ambil nilai aspek dari database dan ubah menjadi persentase
+$queryAspek = $conn->query("SELECT id_aspek, bobot FROM aspek");
+if($queryAspek) {
+    $aspek_data = $queryAspek->fetch_all(MYSQLI_ASSOC);
+    $total_bobot = array_sum(array_column($aspek_data, 'bobot'));
+    $nilaiAspek = array();
+    foreach ($aspek_data as $data) {
+        $nilaiAspek[$data['id_aspek']] = $data['bobot'] / $total_bobot; // Ubah bobot menjadi desimal
+    }
+
+    // Hitung hasil perankingan
+    $perankingan = array();
+    foreach ($hasilAkhir as $id_aspek => $hasil_per_aspek) {
+        foreach ($hasil_per_aspek as $alternatif => $hasil) {
+            // Kalikan hasil akhir dengan nilai aspek dan jumlahkan per aspek
+            if (!isset($perankingan[$alternatif])) {
+                $perankingan[$alternatif] = 0;
+            }
+            $perankingan[$alternatif] += $hasil * $nilaiAspek[$id_aspek];
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Perhitungan</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .container {
+            margin-top: 20px;
+        }
+        .btn-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Hasil Perhitungan</h1>
+
+        <!-- Tabel hasil akhir -->
+        <?php if(!empty($hasilAkhir)): ?>
+            <h2>Peringkat Hasil Akhir</h2>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Peringkat</th>
+                        <th>Nama Pegawai</th>
+                        <th>Hasil Akhir</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    // Sorting $hasilAkhir by value (descending order)
+                    arsort($hasilAkhir);
+
+                    // Counter for ranking
+                    $ranking = 1;
+
+                    // Display each result
+                    foreach ($hasilAkhir as $id_aspek => $aspek) {
+                        // Sorting $aspek by value (descending order)
+                        arsort($aspek);
+                        foreach ($aspek as $alternatif => $hasil) {
+                            // Retrieve employee name from the database based on alternative ID
+                            $queryNamaPegawai = $conn->query("SELECT nama_pegawai FROM alternatif WHERE id_alternatif = $alternatif");
+                            if($queryNamaPegawai && $queryNamaPegawai->num_rows > 0) {
+                                $nama_pegawai = $queryNamaPegawai->fetch_assoc()['nama_pegawai'];
+                                // Display the result
+                                echo "<tr>";
+                                echo "<td>$ranking</td>";
+                                echo "<td>$nama_pegawai</td>";
+                                echo "<td>$hasil</td>";
+                                echo "</tr>";
+                                $ranking++;
+                            }
+                        }
+                    }
+                    ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <div class="alert alert-info" role="alert">Belum ada hasil perhitungan yang tersedia.</div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Button Container -->
+    <div class="container btn-container">
+        <!-- Tombol kembali ke dashboard -->
+        <a href="dashboard.php" class="btn btn-primary">Kembali ke Dashboard</a>
+
+        <!-- Tombol untuk mencetak PDF -->
+        <button onclick="printPDF()" class="btn btn-success">Cetak PDF</button>
+    </div>
+
+    <!-- Script untuk mencetak PDF -->
+    <script>
+        function printPDF() {
+            // Mencetak seluruh isi dokumen
+            window.print();
+        }
+    </script>
+</body>
+</html>
+</file>
+
+<file path="algo3.php">
+<?php
+include('config.php');
+
+function hitungGapDanBobot($nilai, $target) {
+    // Hitung gap
+    $gap = $target - $nilai;
+
+    // Ubah gap menjadi bobot berdasarkan pemetaan yang telah ditentukan
+    switch ($gap) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+            $bobot = 5;
+            break;
+        case -1:
+            $bobot = 4;
+            break;
+        case -2:
+            $bobot = 3;
+            break;
+        case -3:
+            $bobot = 2;
+            break;
+        case -4:
+            $bobot = 1;
+            break;
+        default:
+            $bobot = 0; // Default jika gap tidak sesuai dengan daftar
+            break;
+    }
+
+    return array('gap' => $gap, 'bobot' => $bobot);
+}
+
+if(isset($_POST['nilai_kriteria'])) {
+    // Ambil data penilaian dari form
+    $nilai_kriteria = $_POST['nilai_kriteria'];
+
+    // Inisialisasi array untuk menyimpan bobot kriteria
+    $bobot_kriteria = array();
+
+    // Proses perhitungan gap dan bobot
+    foreach ($nilai_kriteria as $id_alternatif => $kriteria) {
+        foreach ($kriteria as $id_kriteria => $nilai) {
+            // Ambil nilai target, jenis factor, dan nama kriteria dari database
+            $queryInfo = $conn->query("SELECT nilai_target, jenis_factor, id_aspek, nama_kriteria FROM kriteria WHERE id_kriteria = $id_kriteria");
+            if($queryInfo) {
+                $info_data = $queryInfo->fetch_assoc();
+                $target = $info_data['nilai_target'];
+                $jenis_factor = $info_data['jenis_factor'];
+                $id_aspek = $info_data['id_aspek'];
+                $nama_kriteria = $info_data['nama_kriteria'];
+
+                // Hitung gap dan bobot
+                $result = hitungGapDanBobot($nilai, $target);
+                $gap = $result['gap'];
+                $bobot = $result['bobot'];
+
+                // Menyimpan informasi jenis factor (CF atau SF) ke dalam array bobot
+                $bobot_kriteria[$id_aspek][$id_kriteria][] = array(
+                    'alternatif' => $id_alternatif,
+                    'gap' => $gap,
+                    'bobot' => $bobot,
+                    'jenis_factor' => $jenis_factor,
+                    'nama_kriteria' => $nama_kriteria,
+                    'target' => $target
+                );
+            } else {
+                // Handle jika query tidak berhasil dieksekusi
+                echo "Error: " . $conn->error;
+            }
+        }
+    }
+
+    // Output perhitungan gap dan bobot per aspek dan alternatif
+    echo "<h2>Gap dan Bobot per Aspek dan Alternatif</h2>";
+    foreach ($bobot_kriteria as $id_aspek => $aspek) {
+        echo "<h3>Aspek $id_aspek</h3>";
+        echo "<table border='1'><tr><th>Alternatif</th><th>Kriteria</th><th>Nilai Target</th><th>Gap</th><th>Bobot</th><th>Jenis Factor</th></tr>";
+        foreach ($aspek as $id_kriteria => $kriteria) {
+            foreach ($kriteria as $info) {
+                echo "<tr><td>Alternatif " . $info['alternatif'] . "</td><td>" . $info['nama_kriteria'] . "</td><td>" . $info['target'] . "</td><td>" . $info['gap'] . "</td><td>" . $info['bobot'] . "</td><td>" . $info['jenis_factor'] . "</td></tr>";
+            }
+        }
+        echo "</table><hr>";
+    }
+
+    // Hitung nilai CF dan SF per aspek untuk setiap alternatif
+    $nilaiCF = array(); // Array untuk menyimpan nilai CF
+    $nilaiSF = array(); // Array untuk menyimpan nilai SF
+    foreach ($bobot_kriteria as $id_aspek => $aspek) {
+        foreach ($aspek as $id_kriteria => $kriteria) {
+            foreach ($kriteria as $info) {
+                // Tentukan jenis factor (CF atau SF)
+                if ($info['jenis_factor'] == 'core') {
+                    // Tambahkan nilai bobot CF
+                    if (!isset($nilaiCF[$id_aspek][$info['alternatif']])) {
+                        $nilaiCF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiCF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                } elseif ($info['jenis_factor'] == 'secondary') {
+                    // Tambahkan nilai bobot SF
+                    if (!isset($nilaiSF[$id_aspek][$info['alternatif']])) {
+                        $nilaiSF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiSF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                }
+            }
+        }
+    }
+
+    // Output nilai CF dan SF per aspek dan alternatif
+    echo "<h2>Nilai CF dan SF per Aspek dan Alternatif</h2>";
+    foreach ($nilaiCF as $id_aspek => $aspek) {
+        echo "<h3>Aspek $id_aspek</h3>";
+        echo "<table border='1'><tr><th>Alternatif</th><th>CF</th><th>SF</th></tr>";
+        foreach ($aspek as $alternatif => $cf) {
+            $sf = isset($nilaiSF[$id_aspek][$alternatif]) ? $nilaiSF[$id_aspek][$alternatif] : 0;
+            echo "<tr><td>Alternatif $alternatif</td><td>$cf</td><td>$sf</td></tr>";
+        }
+        echo "</table><hr>";
+    }
+
+    
+    // Ambil jumlah CF dan SF di setiap aspek dari database
+    $queryJumlahCF = $conn->query("SELECT id_aspek, COUNT(*) as jumlah_cf FROM kriteria WHERE jenis_factor = 'core' GROUP BY id_aspek");
+    $queryJumlahSF = $conn->query("SELECT id_aspek, COUNT(*) as jumlah_sf FROM kriteria WHERE jenis_factor = 'secondary' GROUP BY id_aspek");
+
+    // Buat array untuk menyimpan jumlah CF dan SF per aspek
+    $jumlahCFPerAspek = array();
+    $jumlahSFPerAspek = array();
+
+    // Ambil jumlah CF per aspek
+    if ($queryJumlahCF) {
+    while ($row = $queryJumlahCF->fetch_assoc()) {
+        $jumlahCFPerAspek[$row['id_aspek']] = $row['jumlah_cf'];
+        }
+    }
+
+    // Ambil jumlah SF per aspek
+    if ($queryJumlahSF) {
+    while ($row = $queryJumlahSF->fetch_assoc()) {
+        $jumlahSFPerAspek[$row['id_aspek']] = $row['jumlah_sf'];
+        }
+    }
+
+    // Bagi nilai CF dengan jumlah CF alternatif di setiap aspek
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        $jumlah_cf_aspek = isset($jumlahCFPerAspek[$id_aspek]) ? $jumlahCFPerAspek[$id_aspek] : 1;
+    foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+        $nilaiCF[$id_aspek][$alternatif] /= $jumlah_cf_aspek;
+        }
+    }
+
+    // Bagi nilai SF dengan jumlah SF alternatif di setiap aspek
+    foreach ($nilaiSF as $id_aspek => $nilai_sf_per_aspek) {
+        $jumlah_sf_aspek = isset($jumlahSFPerAspek[$id_aspek]) ? $jumlahSFPerAspek[$id_aspek] : 1;
+    foreach ($nilai_sf_per_aspek as $alternatif => $nilai_sf) {
+        $nilaiSF[$id_aspek][$alternatif] /= $jumlah_sf_aspek;
+        }
+    }
+
+
+    // Hitung hasil akhir berdasarkan bobot CF dan SF
+    $hasilAkhir = array();
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+            // Hitung hasil akhir untuk setiap alternatif di aspek tersebut
+            $hasilAkhir[$id_aspek][$alternatif] = ($nilai_cf * 0.55) + ($nilaiSF[$id_aspek][$alternatif] * 0.45);
+        }
+    }
+
+    // Output hasil akhir per aspek dan alternatif
+    echo "<h2>Hasil Akhir per Aspek dan Alternatif</h2>";
+    foreach ($hasilAkhir as $id_aspek => $aspek) {
+        echo "<h3>Aspek $id_aspek</h3>";
+        echo "<table border='1'><tr><th>Alternatif</th><th>Hasil Akhir</th></tr>";
+        foreach ($aspek as $alternatif => $hasil) {
+            echo "<tr><td>Alternatif $alternatif</td><td>$hasil</td></tr>";
+        }
+        echo "</table><hr>";
+    }
+
+    // Ambil nilai aspek dari database dan ubah menjadi persentase
+    $queryAspek = $conn->query("SELECT id_aspek, bobot FROM aspek");
+    if($queryAspek) {
+        $aspek_data = $queryAspek->fetch_all(MYSQLI_ASSOC);
+        $total_bobot = array_sum(array_column($aspek_data, 'bobot'));
+        $nilaiAspek = array();
+        foreach ($aspek_data as $data) {
+            $nilaiAspek[$data['id_aspek']] = $data['bobot'] / $total_bobot; // Ubah bobot menjadi desimal
+        }
+
+        // Output nilai aspek dalam desimal
+        echo "<h2>Nilai Aspek dalam Desimal</h2>";
+        foreach ($nilaiAspek as $id_aspek => $nilai) {
+            echo "Aspek $id_aspek: $nilai<br>";
+        }
+        echo "<hr>";
+
+        // Hitung hasil perankingan
+        $perankingan = array();
+        foreach ($hasilAkhir as $id_aspek => $hasil_per_aspek) {
+            foreach ($hasil_per_aspek as $alternatif => $hasil) {
+                // Kalikan hasil akhir dengan nilai aspek dan jumlahkan per aspek
+                if (!isset($perankingan[$alternatif])) {
+                    $perankingan[$alternatif] = 0;
+                }
+                $perankingan[$alternatif] += $hasil * $nilaiAspek[$id_aspek];
+            }
+        }
+        
+        arsort($perankingan);
+
+        // Tampilkan hasil perankingan tiap alternatif
+        echo "<h2>Perankingan Tiap Alternatif</h2>";
+        echo "<table border='1'><tr><th>Alternatif</th><th>Nilai Perankingan</th></tr>";
+        foreach ($perankingan as $alternatif => $hasil) {
+            echo "<tr><td>Alternatif $alternatif</td><td>$hasil</td></tr>";
+        }
+        echo "</table>";
+
+        // Tampilkan tombol kembali ke halaman dashboard
+        echo '<a href="dashboard.php" class="btn btn-primary">Kembali ke Dashboard</a>';
+    } else {
+        // Handle jika query nilai aspek tidak berhasil dieksekusi
+        echo "Error: " . $conn->error;
+    }
+} else {
+    // Handle jika POST data tidak terdefinisi atau tidak lengkap
+    // Misalnya, tampilkan pesan kesalahan atau alihkan pengguna ke halaman lain
+    echo "Error: Incomplete or undefined POST data.";
+}
+?>
+</file>
+
+<file path="auth.php">
+<?php
+session_start();
+
+// Fungsi untuk memeriksa apakah pengguna telah login
+function isLoggedIn() {
+    return isset($_SESSION['username']);
+}
+
+// Jika pengguna belum login, redirect ke halaman login
+if (!isLoggedIn()) {
+    header("Location: login.php");
+    exit;
+}
+
+function isAdmin() {
+    return isset($_SESSION['role']) && $_SESSION['role'] == 'admin'; // Memeriksa apakah peran adalah 'admin'
+}
+?>
+</file>
+
+<file path="config.php">
+<?php
+$dbHost = 'localhost';
+$dbUsername = 'root';  // Default MySQL username in XAMPP
+$dbPassword = '';      // No password for the root user in XAMPP
+$dbName = 'spk_karyawan';
+
+$conn = new mysqli($dbHost, $dbUsername, $dbPassword, $dbName);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+?>
+</file>
+
+<file path="create_alternatif.php">
+<?php
+include('config.php');
+
+$message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Mengambil ID terakhir yang dimasukkan ke dalam tabel alternatif
+    $query_last_id = "SELECT MAX(id_alternatif) AS last_id FROM alternatif";
+    $result_last_id = $conn->query($query_last_id);
+    if ($result_last_id && $result_last_id->num_rows > 0) {
+        $last_id_row = $result_last_id->fetch_assoc();
+        $last_id = $last_id_row['last_id'];
+        // Menghitung ID berikutnya dengan menambahkan 1
+        $next_id = $last_id + 1;
+    } else {
+        // Jika tidak ada data di tabel, ID berikutnya diatur sebagai 1
+        $next_id = 1;
+    }
+
+    // Mendapatkan nilai dari form
+    $kode_pegawai = $_POST['kode_pegawai'];
+    $nama_pegawai = $_POST['nama_pegawai'];
+    $tahun_masuk = $_POST['tahun_masuk'];
+
+    // Menyisipkan data dengan ID yang sudah ditentukan
+    $query = "INSERT INTO alternatif (id_alternatif, kode_pegawai, nama_pegawai, tahun_masuk) 
+              VALUES ($next_id, '$kode_pegawai', '$nama_pegawai', $tahun_masuk)";
+
+    if ($conn->query($query) === TRUE) {
+        $message = "Data alternatif berhasil ditambahkan.";
+    } else {
+        $message = "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Data Alternatif</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Create Data Alternatif</h1>
+        
+        <?php if (!empty($message)): ?>
+        <div class="alert alert-success" role="alert">
+            <?php echo $message; ?>
+            <a href="dashboard.php" class="btn btn-primary ml-2">Kembali ke Dashboard</a>
+        </div>
+        <?php endif; ?>
+        
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="kode_pegawai">Kode Pegawai:</label>
+                <input type="text" class="form-control" id="kode_pegawai" name="kode_pegawai" required>
+            </div>
+
+            <div class="form-group">
+                <label for="nama_pegawai">Nama Pegawai:</label>
+                <input type="text" class="form-control" id="nama_pegawai" name="nama_pegawai" required>
+            </div>
+
+            <div class="form-group">
+                <label for="tahun_masuk">Tahun Masuk:</label>
+                <input type="number" class="form-control" id="tahun_masuk" name="tahun_masuk" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Tambah Data</button>
+        </form>
+
+        <div class="mt-3">
+            <a href="data_alternatif.php" class="btn btn-secondary">Lihat Data Alternatif</a>
+        </div>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="create_aspek.php">
+<?php
+include('config.php');
+
+$message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nama_aspek = $_POST['nama_aspek'];
+    $bobot = $_POST['bobot'];
+
+    $query = "INSERT INTO aspek (nama_aspek, bobot) VALUES ('$nama_aspek', '$bobot')";
+
+    if ($conn->query($query) === TRUE) {
+        // Mendapatkan ID aspek yang baru ditambahkan
+        $last_insert_id = $conn->insert_id;
+        $message = "Data aspek berhasil ditambahkan";
+    } else {
+        $message = "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+
+// Mengambil total bobot aspek yang sudah ada di dalam database
+$query_total_bobot = "SELECT SUM(bobot) AS total_bobot FROM aspek";
+$result_total_bobot = $conn->query($query_total_bobot);
+$row_total_bobot = $result_total_bobot->fetch_assoc();
+$total_bobot_terpakai = $row_total_bobot['total_bobot'];
+
+// Menentukan persentase bobot yang sudah terpakai
+$persentase_terpakai = ($total_bobot_terpakai / 100) * 100;
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Data Aspek</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Create Data Aspek</h1>
+        
+        <!-- Tampilkan informasi persentase bobot yang sudah terpakai -->
+        <p>Total bobot yang sudah terpakai: <?php echo $persentase_terpakai; ?>%</p>
+        
+        <!-- Formulir untuk menambah data aspek -->
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="nama_aspek">Nama Aspek:</label>
+                <input type="text" class="form-control" id="nama_aspek" name="nama_aspek" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="bobot">Bobot:</label>
+                <input type="number" class="form-control" id="bobot" name="bobot" step="0.01" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Tambah Data</button>
+        </form>
+        
+        <!-- Navigasi untuk kembali ke halaman data_aspek.php -->
+        <a href="data_aspek.php" class="btn btn-secondary mt-3">Kembali ke Data Aspek</a>
+        
+        <!-- Tampilkan pesan -->
+        <?php if (!empty($message)): ?>
+        <div class="alert alert-info mt-3" role="alert">
+            <?php echo $message; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="create_hasil_akhir.php">
+<?php
+include('config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id_penilaian = $_POST['id_penilaian'];
+    $nilai_kriteria = $_POST['nilai_kriteria'];
+    $pemetaan_gap = $_POST['pemetaan_gap'];
+    $pembobotan_nilai_gap = $_POST['pembobotan_nilai_gap'];
+    $perhitungan_factor = $_POST['perhitungan_factor'];
+
+    // Lakukan perhitungan profil matching (contoh sederhana)
+    $hasil_profil_matching = ($nilai_kriteria + $pemetaan_gap + $pembobotan_nilai_gap) / $perhitungan_factor;
+
+    $query = "INSERT INTO hasil_akhir (id_penilaian, nilai_kriteria, pemetaan_gap, pembobotan_nilai_gap, perhitungan_factor, hasil_profil_matching) 
+              VALUES ($id_penilaian, $nilai_kriteria, $pemetaan_gap, $pembobotan_nilai_gap, $perhitungan_factor, $hasil_profil_matching)";
+
+    if ($conn->query($query) === TRUE) {
+        echo "Data hasil akhir berhasil ditambahkan.";
+    } else {
+        echo "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Data Hasil Akhir</title>
+</head>
+<body>
+    <h1>Create Data Hasil Akhir</h1>
+    
+    <form method="POST" action="">
+        <label>ID Penilaian:</label>
+        <input type="number" name="id_penilaian" required><br>
+
+        <label>Nilai Kriteria:</label>
+        <input type="number" name="nilai_kriteria" step="0.01" required><br>
+
+        <label>Pemetaan GAP:</label>
+        <input type="number" name="pemetaan_gap" step="0.01" required><br>
+
+        <label>Pembobotan Nilai GAP:</label>
+        <input type="number" name="pembobotan_nilai_gap" step="0.01" required><br>
+
+        <label>Perhitungan Factor:</label>
+        <input type="number" name="perhitungan_factor" step="0.01" required><br>
+
+        <button type="submit">Tambah Data</button>
+    </form>
+</body>
+</html>
+</file>
+
+<file path="create_kriteria.php">
+<?php
+include('config.php');
+
+// Query untuk mengambil data aspek
+$query_aspek = "SELECT * FROM aspek";
+$result_aspek = $conn->query($query_aspek);
+
+$message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $kode_kriteria = $_POST['kode_kriteria'];
+    $id_aspek = $_POST['id_aspek'];
+    $nama_kriteria = $_POST['nama_kriteria'];
+    $jenis_factor = $_POST['jenis_factor'];
+    $nilai_target = $_POST['nilai_target'];
+
+    $query = "INSERT INTO kriteria (kode_kriteria, id_aspek, nama_kriteria, jenis_factor, nilai_target) 
+              VALUES ('$kode_kriteria', $id_aspek, '$nama_kriteria', '$jenis_factor', $nilai_target)";
+
+    if ($conn->query($query) === TRUE) {
+        $message = "Data kriteria berhasil ditambahkan.";
+    } else {
+        $message = "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Data Kriteria</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Create Data Kriteria</h1>
+        
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="kode_kriteria">Kode Kriteria:</label>
+                <input type="text" class="form-control" id="kode_kriteria" name="kode_kriteria" required>
+            </div>
+
+            <div class="form-group">
+                <label for="id_aspek">Nama Aspek:</label>
+                <select class="form-control" id="id_aspek" name="id_aspek" required>
+                    <?php 
+                    // Memeriksa apakah ada data aspek
+                    if ($result_aspek->num_rows > 0) {
+                        // Menampilkan pilihan untuk setiap aspek
+                        while ($row_aspek = $result_aspek->fetch_assoc()) {
+                            echo "<option value='" . $row_aspek['id_aspek'] . "'>" . $row_aspek['nama_aspek'] . "</option>";
+                        }
+                    } else {
+                        echo "<option value=''>Tidak ada data aspek</option>";
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nama_kriteria">Nama Kriteria:</label>
+                <input type="text" class="form-control" id="nama_kriteria" name="nama_kriteria" required>
+            </div>
+
+            <div class="form-group">
+                <label for="jenis_factor">Jenis Factor:</label>
+                <select class="form-control" id="jenis_factor" name="jenis_factor" required>
+                    <option value="core">Core Factor</option>
+                    <option value="secondary">Secondary Factor</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nilai_target">Nilai Target:</label>
+                <input type="number" class="form-control" id="nilai_target" name="nilai_target" step="0.01" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Tambah Data</button>
+        </form>
+
+        <!-- Navigasi untuk kembali ke halaman data_kriteria.php -->
+        <a href="data_kriteria.php" class="btn btn-secondary mt-3">Kembali ke Data Kriteria</a>
+        
+        <!-- Tampilkan pesan -->
+        <?php if (!empty($message)): ?>
+        <div class="alert alert-info mt-3" role="alert">
+            <?php echo $message; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="create_penilaian.php">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Input Nilai Kriteria</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .alternatif-heading {
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .aspek-label {
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Input Nilai Kriteria</h1>
+
+        <!-- Form untuk memasukkan nilai kriteria untuk setiap alternatif -->
+        <form id="inputForm" method="POST" action="perhitungan.php">
+            <!-- Ambil data alternatif (karyawan) dari database -->
+            <?php
+            include('config.php');
+
+            $queryAlternatif = $conn->query("SELECT * FROM alternatif");
+            while ($alternatif = $queryAlternatif->fetch_assoc()) {
+                $id_alternatif = $alternatif['id_alternatif'];
+                $nama_alternatif = $alternatif['nama_pegawai'];
+                echo "<div class='row alternatif-section' data-alternatif-id='$id_alternatif'>";
+                echo "<div class='col-md-12 alternatif-heading'><h2>Alternatif $id_alternatif: $nama_alternatif</h2></div>";
+
+                // Ambil data kriteria dari database berdasarkan aspek
+                $queryAspek = $conn->query("SELECT DISTINCT id_aspek FROM kriteria");
+                while ($aspek = $queryAspek->fetch_assoc()) {
+                    $id_aspek = $aspek['id_aspek'];
+                    $nama_aspek_query = $conn->query("SELECT nama_aspek FROM aspek WHERE id_aspek = $id_aspek");
+                    $nama_aspek = $nama_aspek_query->fetch_assoc()['nama_aspek'];
+                    echo "<div class='col-md-3'>";
+                    echo "<div class='aspek-label'>$nama_aspek</div>";
+                    $queryKriteria = $conn->query("SELECT * FROM kriteria WHERE id_aspek = $id_aspek");
+                    while ($kriteria = $queryKriteria->fetch_assoc()) {
+                        $id_kriteria = $kriteria['id_kriteria'];
+                        $nama_kriteria = $kriteria['nama_kriteria'];
+                        echo "<label>$nama_kriteria:</label>";
+                        echo "<input type='number' name='nilai_kriteria[$id_alternatif][$id_kriteria]' class='form-control' required>";
+                    }
+                    echo "</div>"; // col-md-3
+                }
+                echo "</div>"; // row
+            }
+            ?>
+
+            <!-- Tombol untuk menyimpan input -->
+            <button type="submit" class="btn btn-primary">Hitung</button>
+            <!-- Tombol "Next" untuk beralih ke alternatif berikutnya -->
+            <button type="button" class="btn btn-secondary" id="nextButton">Next</button>
+            <!-- Tombol "Before" untuk beralih ke alternatif sebelumnya -->
+            <button type="button" class="btn btn-secondary" id="beforeButton">Before</button>
+            <!-- Tombol kembali ke dashboard -->
+            <a href="dashboard.php" class="btn btn-warning">Kembali ke Dashboard</a>
+        </form>
+    </div>
+
+    <!-- Script jQuery untuk menangani navigasi antara alternatif -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Semua bagian alternatif dianggap tersembunyi awalnya
+            $('.alternatif-section').hide();
+            // Tampilkan bagian pertama (alternatif pertama)
+            $('.alternatif-section:first').show();
+
+            // Handler untuk tombol "Next"
+            $('#nextButton').click(function() {
+                // Cari bagian yang sedang ditampilkan saat ini
+                var currentSection = $('.alternatif-section:visible');
+                // Sembunyikan bagian yang sedang ditampilkan
+                currentSection.hide();
+                // Tampilkan bagian berikutnya (jika ada)
+                var nextSection = currentSection.next('.alternatif-section');
+                if (nextSection.length !== 0) {
+                    nextSection.show();
+                }
+                // Disable "Next" button if there are no more sections
+                if (nextSection.next('.alternatif-section').length === 0) {
+                    $(this).prop('disabled', true);
+                }
+                // Enable "Before" button
+                $('#beforeButton').prop('disabled', false);
+            });
+
+            // Handler untuk tombol "Before"
+            $('#beforeButton').click(function() {
+                // Cari bagian yang sedang ditampilkan saat ini
+                var currentSection = $('.alternatif-section:visible');
+                // Sembunyikan bagian yang sedang ditampilkan
+                currentSection.hide();
+                // Tampilkan bagian sebelumnya (jika ada)
+                var prevSection = currentSection.prev('.alternatif-section');
+                if (prevSection.length !== 0) {
+                    prevSection.show();
+                }
+                // Disable "Before" button if there are no more sections
+                if (prevSection.prev('.alternatif-section').length === 0) {
+                    $(this).prop('disabled', true);
+                }
+                // Enable "Next" button
+                $('#nextButton').prop('disabled', false);
+            });
+
+            // Disable "Before" button initially since it's the first section
+            $('#beforeButton').prop('disabled', true);
+        });
+    </script>
+</body>
+</html>
+</file>
+
+<file path="dashboard.php">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        .navbar-nav .nav-link.active {
+            font-weight: bold; /* Menjadikan tulisan lebih gelap */
+        }
+        /* Tambahkan margin atau padding pada bagian atas container */
+        .container {
+            margin-top: 80px; /* Sesuaikan dengan tinggi navbar */
+        }
+    </style>
+</head>
+<body>
+    <?php include 'navbar.php'; ?>
+
+    <div class="container">
+        <!-- Tambahkan tombol atau link ke halaman penilaian -->
+        <h1>Halaman Penilaian</h1>
+        <a href="create_penilaian.php" class="btn btn-primary">Lakukan Penilaian</a>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="data_alternatif.php">
+<?php
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Sertakan file auth.php
+include('auth.php');
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        .navbar-nav .nav-link.active {
+            font-weight: bold; /* Menjadikan tulisan lebih gelap */
+        }
+        /* Tambahkan margin atau padding pada bagian atas container */
+        .container {
+            margin-top: 80px; /* Sesuaikan dengan tinggi navbar */
+        }
+    </style>
+</head>
+<body>
+    <?php include 'navbar.php'; ?>
+
+    <div class="container">
+        <h1>Data Alternatif</h1>
+        <?php
+        // Query untuk mengambil data alternatif dari database
+        $query = "SELECT * FROM alternatif";
+        $result = $conn->query($query);
+
+        // HTML untuk menampilkan data tabel dan tombol tambah alternatif
+        $output = "";
+        if ($result->num_rows > 0) {
+            // Tampilkan tabel data alternatif dengan menggunakan Bootstrap
+            $output .= "<div class='table-responsive'>";
+            $output .= "<table class='table table-bordered table-striped'>";
+            $output .= "<thead class='thead-light'> <!-- Tambahkan gaya untuk header tabel -->";
+            $output .= "<tr>
+                    <th scope='col'>No</th>
+                    <th scope='col'>Kode Pegawai</th>
+                    <th scope='col'>Nama Pegawai</th>
+                    <th scope='col'>Tahun Masuk</th>
+                    <th scope='col'>Aksi</th>
+                  </tr>
+                  </thead>";
+            $output .= "<tbody>";
+
+            // Iterasi untuk menampilkan data alternatif
+            $no = 1;
+            while ($row = $result->fetch_assoc()) {
+                $output .= "<tr>
+                        <td>" . $no++ . "</td>
+                        <td>" . $row['kode_pegawai'] . "</td>
+                        <td>" . $row['nama_pegawai'] . "</td>
+                        <td>" . $row['tahun_masuk'] . "</td>
+                        <td>";
+                // Tampilkan tombol edit dan delete hanya jika pengguna adalah admin
+                if (isAdmin()) {
+                    $output .= "<a href='edit_alternatif.php?id=" . $row['id_alternatif'] . "' class='btn btn-sm btn-primary'>Edit</a>
+                              <a href='delete_alternatif.php?id=" . $row['id_alternatif'] . "' class='btn btn-sm btn-danger'>Delete</a>";
+                }
+                $output .= "</td>
+                    </tr>";
+            }
+
+            $output .= "</tbody>";
+            $output .= "</table>";
+            $output .= "</div>";
+
+        } else {
+            $output .= "<div class='alert alert-warning' role='alert'>Tidak ada data alternatif.</div>"; // Tambahkan gaya untuk pesan peringatan
+        }
+
+        // Tambahkan tombol tambah alternatif jika pengguna memiliki izin
+        if (isAdmin()) {
+            $output .= "<a href='create_alternatif.php' class='btn btn-success'>Tambah Alternatif</a>";
+        }
+
+        // Menampilkan output
+        echo $output;
+        ?>
+    </div>
+</body>
+</html>
+
+<?php
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="data_aspek.php">
+<?php
+session_start();
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Sertakan file auth.php
+include('auth.php');
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Aspek</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        .navbar-nav .nav-link.active {
+            font-weight: bold; /* Menjadikan tulisan lebih gelap */
+        }
+        .container {
+            margin-top: 80px; /* Sesuaikan dengan tinggi navbar */
+        }
+    </style>
+</head>
+<body>
+
+<?php include('navbar.php'); ?>
+
+<div class="container">
+    <h1>Data Aspek</h1>
+    <table class="table table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th scope="col">No</th>
+                <th scope="col">Nama Aspek</th>
+                <th scope="col">Bobot</th>
+                <th scope="col">Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $query = "SELECT * FROM aspek";
+            $result = $conn->query($query);
+            $no = 1;
+            if ($result->num_rows > 0) {
+                while ($row = $result->fetch_assoc()) {
+                    echo "<tr>
+                            <td>{$no}</td>
+                            <td>{$row['nama_aspek']}</td>
+                            <td>{$row['bobot']}</td>
+                            <td>";
+                    // Tampilkan tombol edit dan delete hanya jika pengguna adalah admin
+                    if (isAdmin()) {
+                        echo "<a href='edit_aspek.php?id={$row['id_aspek']}' class='btn btn-sm btn-primary'>Edit</a>
+                              <a href='delete_aspek.php?id={$row['id_aspek']}' class='btn btn-sm btn-danger'>Delete</a>";
+                    }
+                    echo "</td>
+                        </tr>";
+                    $no++;
+                }
+            } else {
+                echo "<tr><td colspan='4'>Tidak ada data aspek.</td></tr>";
+            }
+            ?>
+        </tbody>
+    </table>
+    <?php
+    // Tampilkan tombol tambah hanya jika pengguna adalah admin
+    if (isAdmin()) {
+        echo "<a href='create_aspek.php' class='btn btn-success'>Tambah Aspek</a>";
+    }
+    ?>
+</div>
+
+</body>
+</html>
+
+<?php
+$conn->close();
+?>
+</file>
+
+<file path="data_hasil_akhir.php">
+<?php
+
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Periksa apakah pengguna telah login
+if (!isset($_SESSION['username'])) {
+    // Jika belum login, alihkan ke halaman login
+    header('Location: login.php');
+    exit();
+}
+
+// Query untuk mengambil data hasil akhir dari database
+$query = "SELECT * FROM hasil_akhir";
+$result = $conn->query($query);
+
+// Periksa apakah ada data hasil akhir
+if ($result->num_rows > 0) {
+    // Tampilkan tabel data hasil akhir
+    echo "<table border='1'>
+            <tr>
+                <th>No</th>
+                <th>ID Penilaian</th>
+                <th>Nilai Kriteria</th>
+                <th>Pemetaan GAP</th>
+                <th>Pembobotan Nilai GAP</th>
+                <th>Perhitungan Factor</th>
+                <th>Hasil Profil Matching</th>
+            </tr>";
+
+    // Iterasi untuk menampilkan data hasil akhir
+    $no = 1;
+    while ($row = $result->fetch_assoc()) {
+        echo "<tr>
+                <td>" . $no++ . "</td>
+                <td>" . $row['id_penilaian'] . "</td>
+                <td>" . $row['nilai_kriteria'] . "</td>
+                <td>" . $row['pemetaan_gap'] . "</td>
+                <td>" . $row['pembobotan_nilai_gap'] . "</td>
+                <td>" . $row['perhitungan_factor'] . "</td>
+                <td>" . $row['hasil_profil_matching'] . "</td>
+            </tr>";
+    }
+
+    echo "</table>";
+} else {
+    echo "Tidak ada data hasil akhir.";
+}
+
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="data_kriteria.php">
+<?php
+
+// Menggunakan __DIR__ untuk path yang relatif
+include('config.php');
+
+// Sertakan file auth.php
+include('auth.php');
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Kriteria</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        .navbar-nav .nav-link.active {
+            font-weight: bold; /* Menjadikan tulisan lebih gelap */
+        }
+        .container {
+            margin-top: 80px; /* Sesuaikan dengan tinggi navbar */
+        }
+    </style>
+</head>
+<body>
+
+<?php include('navbar.php'); ?>
+
+<div class="container">
+    <h1>Data Kriteria</h1>
+    <table class="table table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th scope="col">No</th>
+                <th scope="col">Kode Kriteria</th>
+                <th scope="col">Aspek</th>
+                <th scope="col">Kriteria</th>
+                <th scope="col">Jenis Factor</th>
+                <th scope="col">Nilai Target</th>
+                <th scope="col">Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            // Query untuk mengambil data kriteria dan informasi aspek yang terkait dari database
+            $query = "SELECT k.id_kriteria, k.kode_kriteria, a.nama_aspek, k.nama_kriteria, k.jenis_factor, k.nilai_target 
+                      FROM kriteria k
+                      INNER JOIN aspek a ON k.id_aspek = a.id_aspek";
+            $result = $conn->query($query);
+
+            // Periksa apakah query berhasil dieksekusi dengan benar
+            if ($result) {
+                // Periksa apakah ada data kriteria
+                if ($result->num_rows > 0) {
+                    // Iterasi untuk menampilkan data kriteria
+                    $no = 1;
+                    while ($row = $result->fetch_assoc()) {
+                        echo "<tr>
+                                <td>" . $no++ . "</td>
+                                <td>" . $row['kode_kriteria'] . "</td>
+                                <td>" . $row['nama_aspek'] . "</td>
+                                <td>" . $row['nama_kriteria'] . "</td>
+                                <td>" . $row['jenis_factor'] . "</td>
+                                <td>" . $row['nilai_target'] . "</td>
+                                <td>";
+                        // Tampilkan tombol edit dan delete hanya jika pengguna adalah admin
+                        if (isAdmin()) {
+                            echo "<a href='edit_kriteria.php?id={$row['id_kriteria']}' class='btn btn-sm btn-primary'>Edit</a>
+                                  <a href='delete_kriteria.php?id={$row['id_kriteria']}' class='btn btn-sm btn-danger'>Delete</a>";
+                        }
+                        echo "</td>
+                            </tr>";
+                    }
+                } else {
+                    echo "<tr><td colspan='7'>Tidak ada data kriteria.</td></tr>";
+                }
+            } else {
+                echo "<tr><td colspan='7'>Error: " . $conn->error . "</td></tr>";
+            }
+            ?>
+        </tbody>
+    </table>
+    <?php
+    // Tampilkan tombol tambah hanya jika pengguna adalah admin
+    if (isAdmin()) {
+        echo "<a href='create_kriteria.php' class='btn btn-success'>Tambah Kriteria</a>";
+    }
+    ?>
+</div>
+
+</body>
+</html>
+
+<?php
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="data_pengguna.php">
+<?php
+
+include('config.php');
+
+include('auth.php'); // Add a semicolon here
+
+// CREATE
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_create'])) {
+    // Only proceed if the user is logged in as admin
+    if (isAdmin()) {
+        $nama_pengguna = $_POST['nama_pengguna'];
+        $username = $_POST['username'];
+        $password = $_POST['password'];
+        $role = $_POST['role']; // Ambil peran dari formulir
+
+        // Enkripsi password sebelum menyimpannya ke database
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+        // Query untuk menyimpan data pengguna ke dalam database
+        $query = "INSERT INTO pengguna (nama_pengguna, username, password, role) VALUES ('$nama_pengguna', '$username', '$hashed_password', '$role')";
+
+        if ($conn->query($query) === TRUE) {
+            echo "Data pengguna berhasil ditambahkan.";
+        } else {
+            echo "Error: " . $query . "<br>" . $conn->error;
+        }
+    } else {
+        echo "Anda tidak memiliki izin untuk menambahkan pengguna.";
+    }
+}
+
+// READ
+$query = "SELECT * FROM pengguna";
+$result = $conn->query($query);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Pengguna</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Data Pengguna</h1>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nama Pengguna</th>
+                    <th>Username</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                if ($result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
+                        echo "<tr>
+                                <td>" . $row['id_pengguna'] . "</td>
+                                <td>" . $row['nama_pengguna'] . "</td>
+                                <td>" . $row['username'] . "</td>
+                                <td>";
+                        // Check if the user is logged in as admin
+                        if (isAdmin()) {
+                            echo "<a href='edit_pengguna.php?id=" . $row['id_pengguna'] . "' class='btn btn-primary'>Edit</a>
+                                    <a href='delete_pengguna.php?id=" . $row['id_pengguna'] . "' class='btn btn-danger'>Delete</a>";
+                        } else {
+                            echo "Anda tidak memiliki izin untuk mengedit atau menghapus pengguna.";
+                        }
+                        echo "</td>
+                            </tr>";
+                    }
+                } else {
+                    echo "<tr><td colspan='5'>Tidak ada data pengguna.</td></tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+        <?php if (isAdmin()): ?>
+        <h2>Tambah Data Pengguna</h2>
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="nama_pengguna">Nama Pengguna:</label>
+                <input type="text" name="nama_pengguna" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="role">Role:</label>
+                <select name="role" class="form-control" required>
+                    <option value="0">User</option>
+                    <option value="1">Admin</option>
+                </select>
+            </div>
+            <!-- Only show the submit button if the user is logged in as admin -->
+            
+                <button type="submit" name="submit_create" class="btn btn-success">Tambah Data</button>
+            <?php endif; ?>
+        </form>
+
+        <a href="dashboard.php" class="btn btn-primary mt-3">Kembali ke Dashboard</a>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
+
+<?php
+$conn->close();
+?>
+</file>
+
+<file path="delete_alternatif.php">
+<?php
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Periksa apakah parameter ID alternatif diberikan dalam URL
+if(isset($_GET['id']) && !empty($_GET['id'])){
+    // Ambil ID alternatif dari parameter URL
+    $id_alternatif = $_GET['id'];
+
+    // Query untuk menghapus data alternatif dari database
+    $query = "DELETE FROM alternatif WHERE id_alternatif = $id_alternatif";
+
+    // Eksekusi query
+    if ($conn->query($query) === TRUE) {
+        // Jika berhasil dihapus, redirect ke halaman data alternatif
+        header("Location: data_alternatif.php");
+        exit;
+    } else {
+        // Jika terjadi kesalahan, tampilkan pesan kesalahan
+        echo "Error deleting record: " . $conn->error;
+    }
+}
+
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="delete_aspek.php">
+<?php
+// Mulai sesi PHP
+session_start();
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Periksa apakah parameter ID aspek diberikan dalam URL
+if(isset($_GET['id']) && !empty($_GET['id'])){
+    // Ambil ID aspek dari parameter URL
+    $id_aspek = $_GET['id'];
+
+    // Query untuk menghapus data aspek dari database
+    $query = "DELETE FROM aspek WHERE id_aspek = $id_aspek";
+
+    // Eksekusi query
+    if ($conn->query($query) === TRUE) {
+        // Jika berhasil dihapus, redirect ke halaman data aspek
+        header("Location: data_aspek.php");
+        exit;
+    } else {
+        // Jika terjadi kesalahan, tampilkan pesan kesalahan
+        echo "Error deleting record: " . $conn->error;
+    }
+}
+
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="delete_kriteria.php">
+<?php
+// Mulai sesi PHP
+session_start();
+
+
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Periksa apakah parameter ID kriteria diberikan dalam URL
+if(isset($_GET['id']) && !empty($_GET['id'])){
+    // Ambil ID kriteria dari parameter URL
+    $id_kriteria = $_GET['id'];
+
+    // Query untuk menghapus data kriteria dari database
+    $query = "DELETE FROM kriteria WHERE id_kriteria = $id_kriteria";
+
+    // Eksekusi query
+    if ($conn->query($query) === TRUE) {
+        // Jika berhasil dihapus, redirect ke halaman data kriteria
+        header("Location: data_kriteria.php");
+        exit;
+    } else {
+        // Jika terjadi kesalahan, tampilkan pesan kesalahan
+        echo "Error deleting record: " . $conn->error;
+    }
+}
+
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="delete_pengguna.php">
+<?php
+// Mulai sesi PHP
+session_start();
+
+
+
+// Tambahkan var_dump untuk memeriksa nilai $_SESSION['role']
+var_dump($_SESSION['role']);
+
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Periksa apakah parameter ID pengguna diberikan dalam URL
+if(isset($_GET['id']) && !empty($_GET['id'])){
+    // Ambil ID pengguna dari parameter URL
+    $id_pengguna = $_GET['id'];
+
+    // Query untuk menghapus data pengguna dari database
+    $query = "DELETE FROM pengguna WHERE id_pengguna = $id_pengguna";
+
+    // Eksekusi query
+    if ($conn->query($query) === TRUE) {
+        // Jika berhasil dihapus, redirect ke halaman data pengguna
+        header("Location: data_pengguna.php");
+        exit;
+    } else {
+        // Jika terjadi kesalahan, tampilkan pesan kesalahan
+        echo "Error deleting record: " . $conn->error;
+    }
+}
+
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="edit_alternatif.php">
+<?php
+
+include('config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id_alternatif = $_POST['id_alternatif'];
+    $kode_pegawai = $_POST['kode_pegawai'];
+    $nama_pegawai = $_POST['nama_pegawai'];
+    $tahun_masuk = $_POST['tahun_masuk'];
+
+    $query = "UPDATE alternatif SET kode_pegawai = '$kode_pegawai', nama_pegawai = '$nama_pegawai', tahun_masuk = '$tahun_masuk' WHERE id_alternatif = $id_alternatif";
+
+    if ($conn->query($query) === TRUE) {
+        echo "Data alternatif berhasil diupdate.";
+    } else {
+        echo "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+
+// Ambil data alternatif berdasarkan ID
+if (isset($_GET['id'])) {
+    $id_alternatif = $_GET['id'];
+    $query = "SELECT * FROM alternatif WHERE id_alternatif = $id_alternatif";
+    $result = $conn->query($query);
+
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $kode_pegawai = $row['kode_pegawai'];
+        $nama_pegawai = $row['nama_pegawai'];
+        $tahun_masuk = $row['tahun_masuk'];
+    } else {
+        echo "Data tidak ditemukan.";
+    }
+} else {
+    echo "ID tidak tersedia.";
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Data Alternatif</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Data Alternatif</h1>
+        
+        <form method="POST" action="">
+            <input type="hidden" name="id_alternatif" value="<?php echo $id_alternatif; ?>">
+            
+            <div class="form-group">
+                <label>Kode Pegawai:</label>
+                <input type="text" name="kode_pegawai" value="<?php echo $kode_pegawai; ?>" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Nama Pegawai:</label>
+                <input type="text" name="nama_pegawai" value="<?php echo $nama_pegawai; ?>" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Tahun Masuk:</label>
+                <input type="number" name="tahun_masuk" value="<?php echo $tahun_masuk; ?>" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Update Data</button>
+        </form>
+
+        <a href="data_alternatif.php" class="btn btn-secondary mt-3">Kembali ke Data Alternatif</a>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
+</file>
+
+<file path="edit_aspek.php">
+<?php
+include('config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id_aspek = $_POST['id_aspek'];
+    $nama_aspek = $_POST['nama_aspek'];
+    $bobot = $_POST['bobot'];
+
+    $query = "UPDATE aspek SET nama_aspek = '$nama_aspek', bobot = '$bobot' WHERE id_aspek = $id_aspek";
+
+    if ($conn->query($query) === TRUE) {
+        echo "Data aspek berhasil diperbarui.";
+    } else {
+        echo "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+
+if (isset($_GET['id'])) {
+    $id_aspek = $_GET['id'];
+
+    $query = "SELECT * FROM aspek WHERE id_aspek = $id_aspek";
+    $result = $conn->query($query);
+
+    if ($result->num_rows == 1) {
+        $row = $result->fetch_assoc();
+        $nama_aspek = $row['nama_aspek'];
+        $bobot = $row['bobot'];
+    } else {
+        echo "Data aspek tidak ditemukan.";
+        exit();
+    }
+} else {
+    echo "ID aspek tidak tersedia.";
+    exit();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Data Aspek</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Data Aspek</h1>
+        
+        <form method="POST" action="">
+            <input type="hidden" name="id_aspek" value="<?php echo $id_aspek; ?>">
+            
+            <div class="form-group">
+                <label>Nama Aspek:</label>
+                <input type="text" name="nama_aspek" value="<?php echo $nama_aspek; ?>" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Bobot:</label>
+                <input type="number" name="bobot" value="<?php echo $bobot; ?>" class="form-control" step="0.01" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Perbarui Data</button>
+        </form>
+
+        <a href="data_aspek.php" class="btn btn-secondary mt-3">Kembali ke Data Aspek</a>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
+</file>
+
+<file path="edit_kriteria.php">
+<?php
+include('config.php');
+
+// Periksa apakah ada parameter ID kriteria yang dikirimkan melalui URL
+if (isset($_GET['id'])) {
+    $id_kriteria = $_GET['id'];
+
+    // Query untuk mengambil data kriteria berdasarkan ID
+    $query = "SELECT * FROM kriteria WHERE id_kriteria = $id_kriteria";
+    $result = $conn->query($query);
+
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $kode_kriteria = $row['kode_kriteria'];
+        $id_aspek = $row['id_aspek'];
+        $nama_kriteria = $row['nama_kriteria'];
+        $jenis_factor = $row['jenis_factor'];
+        $nilai_target = $row['nilai_target'];
+    } else {
+        echo "Data kriteria tidak ditemukan.";
+        exit();
+    }
+} else {
+    echo "ID kriteria tidak diberikan.";
+    exit();
+}
+
+// Query untuk mengambil data aspek
+$query_aspek = "SELECT * FROM aspek";
+$result_aspek = $conn->query($query_aspek);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $kode_kriteria = $_POST['kode_kriteria'];
+    $id_aspek = $_POST['id_aspek'];
+    $nama_kriteria = $_POST['nama_kriteria'];
+    $jenis_factor = $_POST['jenis_factor'];
+    $nilai_target = $_POST['nilai_target'];
+
+    // Query untuk melakukan update data kriteria
+    $query_update = "UPDATE kriteria 
+                     SET kode_kriteria = '$kode_kriteria', id_aspek = $id_aspek, 
+                         nama_kriteria = '$nama_kriteria', jenis_factor = '$jenis_factor', 
+                         nilai_target = $nilai_target 
+                     WHERE id_kriteria = $id_kriteria";
+
+    if ($conn->query($query_update) === TRUE) {
+        echo "Data kriteria berhasil diperbarui.";
+    } else {
+        echo "Error: " . $query_update . "<br>" . $conn->error;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Data Kriteria</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Data Kriteria</h1>
+        
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="kode_kriteria">Kode Kriteria:</label>
+                <input type="text" name="kode_kriteria" value="<?php echo $kode_kriteria; ?>" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="id_aspek">Nama Aspek:</label>
+                <select name="id_aspek" class="form-control" required>
+                    <?php 
+                    // Memeriksa apakah ada data aspek
+                    if ($result_aspek->num_rows > 0) {
+                        // Menampilkan pilihan untuk setiap aspek
+                        while ($row_aspek = $result_aspek->fetch_assoc()) {
+                            $selected = ($row_aspek['id_aspek'] == $id_aspek) ? 'selected' : '';
+                            echo "<option value='" . $row_aspek['id_aspek'] . "' $selected>" . $row_aspek['nama_aspek'] . "</option>";
+                        }
+                    } else {
+                        echo "<option value=''>Tidak ada data aspek</option>";
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nama_kriteria">Nama Kriteria:</label>
+                <input type="text" name="nama_kriteria" value="<?php echo $nama_kriteria; ?>" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="jenis_factor">Jenis Factor:</label>
+                <select name="jenis_factor" class="form-control" required>
+                    <option value="core" <?php if ($jenis_factor == 'core') echo 'selected'; ?>>Core Factor</option>
+                    <option value="secondary" <?php if ($jenis_factor == 'secondary') echo 'selected'; ?>>Secondary Factor</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nilai_target">Nilai Target:</label>
+                <input type="number" name="nilai_target" value="<?php echo $nilai_target; ?>" step="0.01" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Perbarui Data</button>
+        </form>
+
+        <a href="data_kriteria.php" class="btn btn-secondary mt-3">Kembali ke Data Kriteria</a>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
+</file>
+
+<file path="edit_pengguna.php">
+<?php
+session_start();
+include('config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_edit'])) {
+    $id_pengguna = $_POST['id_pengguna'];
+    $new_password = $_POST['new_password'];
+    $role = $_POST['role']; // Ambil peran yang diubah dari formulir
+
+    // Enkripsi password sebelum menyimpannya ke database
+    $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+
+    // Update password dan peran pengguna berdasarkan ID
+    $query = "UPDATE pengguna SET password = '$hashed_password', role = '$role' WHERE id_pengguna = $id_pengguna";
+
+    if ($conn->query($query) === TRUE) {
+        echo "Password dan peran pengguna berhasil diperbarui.";
+    } else {
+        echo "Error: " . $query . "<br>" . $conn->error;
+    }
+}
+
+// Ambil ID pengguna dari parameter URL
+if (isset($_GET['id'])) {
+    $id_pengguna = $_GET['id'];
+
+    // Query untuk mengambil data pengguna berdasarkan ID
+    $query = "SELECT * FROM pengguna WHERE id_pengguna = $id_pengguna";
+    $result = $conn->query($query);
+
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $username = $row['username'];
+        $role = $row['role']; // Simpan peran pengguna saat ini
+    } else {
+        echo "Data pengguna tidak ditemukan.";
+        exit();
+    }
+} else {
+    echo "ID pengguna tidak tersedia.";
+    exit();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Password dan Peran Pengguna</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Password dan Peran Pengguna</h1>
+        
+        <form method="POST" action="">
+            <input type="hidden" name="id_pengguna" value="<?php echo $id_pengguna; ?>">
+            
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" value="<?php echo $username; ?>" class="form-control" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">Password Baru:</label>
+                <input type="password" name="new_password" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="role">Role:</label>
+                <select name="role" class="form-control" required>
+                    <option value="0" <?php if($role == 0) echo 'disabled'; ?>>User</option> <!-- Periksa dan tandai pengguna biasa -->
+                    <option value="1" <?php if($role == 1) echo 'disabled'; ?>>Admin</option> <!-- Periksa dan tandai admin -->
+                </select>
+            </div>
+
+            <button type="submit" name="submit_edit" class="btn btn-primary">Perbarui Password dan Peran</button>
+        </form>
+
+        <a href="data_pengguna.php" class="btn btn-secondary mt-3">Kembali ke Data Pengguna</a>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="get_alternatif.php">
+<?php
+// Sertakan file konfigurasi database
+include(__DIR__ . '/config.php');
+
+// Query untuk mengambil data alternatif dari database
+$query = "SELECT * FROM alternatif";
+$result = $conn->query($query);
+
+// Array untuk menyimpan data alternatif
+$alternatif = array();
+
+// Periksa apakah ada data alternatif
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        // Tambahkan data alternatif ke dalam array
+        $alternatif[] = $row;
+    }
+}
+
+// Ubah array menjadi format JSON dan kirimkan ke client
+echo json_encode($alternatif);
+
+// Tutup koneksi database
+$conn->close();
+?>
+</file>
+
+<file path="get_kriteria.php">
+<?php
+include('config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $aspekId = $_POST['aspek_id'];
+
+    $query = "SELECT * FROM kriteria WHERE id_aspek = $aspekId";
+    $result = $conn->query($query);
+
+    $kriteriaList = array();
+    while ($row = $result->fetch_assoc()) {
+        $kriteriaList[] = $row;
+    }
+
+    header('Content-Type: application/json');
+    echo json_encode($kriteriaList);
+}
+?>
+</file>
+
+<file path="index.php">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selamat Datang di Proyek Saya</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <!-- Logo Perusahaan -->
+        <div class="text-center mb-4">
+            <img src="img/logo_perusahaan.png" alt="Logo Perusahaan" width="200">
+        </div>
+
+        <!-- Jumbotron -->
+        <div class="jumbotron">
+            <h1 class="display-4">Selamat Datang di Proyek Saya</h1>
+            <p class="lead">Ini adalah proyek yang luar biasa yang telah kami kembangkan untuk Anda.</p>
+            <hr class="my-4">
+            <p>Silakan pilih tindakan berikut untuk melanjutkan:</p>
+            <p class="lead">
+                <a class="btn btn-primary btn-lg mr-2" href="login.php" role="button">Masuk (Login)</a>
+                <a class="btn btn-success btn-lg" href="register.php" role="button">Daftar (Register)</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="login.php">
+<?php
+session_start();
+
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+// Cek apakah pengguna sudah login, jika ya, arahkan ke dashboard
+if (isset($_SESSION['username'])) {
+    header('Location: dashboard.php');
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    // Verifikasi login menggunakan prepared statement
+    $query = "SELECT * FROM pengguna WHERE username = ? LIMIT 1";
+    $stmt = $conn->prepare($query);
+
+    if ($stmt) {
+        $stmt->bind_param('s', $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+
+        // Verifikasi kata sandi menggunakan password_verify
+        if ($user && password_verify($password, $user['password'])) {
+            // Login berhasil
+            $_SESSION['username'] = $username;
+            $_SESSION['role'] = $user['role']; // Simpan peran pengguna di dalam sesi
+            header('Location: dashboard.php');
+            exit();
+        } else {
+            // Login gagal
+            echo "<div class='alert alert-danger' role='alert'>Login gagal. Periksa kembali username dan password.</div>";
+        }
+
+        // Tutup pernyataan
+        $stmt->close();
+    } else {
+        // Handle kesalahan pernyataan
+        echo "<div class='alert alert-danger' role='alert'>Error in statement preparation.</div>";
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h1 class="card-title text-center">Login</h1>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="">
+                            <div class="form-group">
+                                <label for="username">Username:</label>
+                                <input type="text" name="username" id="username" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="password">Password:</label>
+                                <input type="password" name="password" id="password" class="form-control" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block">Login</button>
+                        </form>
+                    </div>
+                    <div class="card-footer text-muted">
+                        Belum punya akun? <a href="register.php">Daftar sekarang</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="logout.php">
+<?php
+// Mulai sesi
+session_start();
+
+// Hapus semua variabel sesi
+session_unset();
+
+// Hancurkan sesi
+session_destroy();
+
+// Redirect ke halaman login setelah logout
+header("Location: index.php");
+exit;
+?>
+</file>
+
+<file path="navbar.php">
+<div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-pink fixed-top" style="background-color: lightpink;">
+        <!-- Tombol Toggle Navbar -->
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Bagian Kiri Navbar -->
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'data_aspek.php' ? 'active' : ''; ?>" href="data_aspek.php">Data Aspek</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'data_kriteria.php' ? 'active' : ''; ?>" href="data_kriteria.php">Data Kriteria</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'data_alternatif.php' ? 'active' : ''; ?>" href="data_alternatif.php">Data Alternatif</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'data_hasil_akhir.php' ? 'active' : ''; ?>" href="data_hasil_akhir.php">Data Hasil Akhir</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'data_pengguna.php' ? 'active' : ''; ?>" href="data_pengguna.php">Data Pengguna</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'logout.php' ? 'active' : ''; ?>" href="logout.php">Logout</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Logo Perusahaan -->
+        <a class="navbar-brand ml-auto" href="dashboard.php">
+            <img src="img/logo_perusahaan.png" alt="Logo Perusahaan" width="140" height="50">
+        </a>
+    </nav>
+</div>
+</file>
+
+<file path="perhitungan.php">
+<?php
+
+include('config.php');
+
+$hasilAkhir = [];
+
+if(isset($_POST['nilai_kriteria'])) {
+    
+    $nilai_kriteria = $_POST['nilai_kriteria'];
+
+    $bobot_kriteria = array();
+    foreach ($nilai_kriteria as $id_alternatif => $kriteria) {
+        foreach ($kriteria as $id_kriteria => $nilai) {
+            
+            if(!empty($nilai)) {
+                $queryInfo = $conn->query("SELECT nilai_target, jenis_factor, id_aspek FROM kriteria WHERE id_kriteria = $id_kriteria");
+                if($queryInfo) {
+                    $info_data = $queryInfo->fetch_assoc();
+                    $target = $info_data['nilai_target'];
+                    $jenis_factor = $info_data['jenis_factor'];
+                    $id_aspek = $info_data['id_aspek'];
+                    
+                    $gap = $target - $nilai;
+
+                    switch ($gap) {
+                        case 0:
+                            $bobot = 5;
+                            break;
+                        case 1:
+                            $bobot = 5;
+                            break;
+                        case -1:
+                            $bobot = 4;
+                            break;
+                        case 2:
+                            $bobot = 5;
+                            break;
+                        case -2:
+                            $bobot = 3;
+                            break;
+                        case 3:
+                            $bobot = 5;
+                            break;
+                        case -3:
+                            $bobot = 2;
+                            break;
+                        case 4:
+                            $bobot = 5;
+                            break;
+                        case -4:
+                            $bobot = 1;
+                            break;
+                        default:
+                            $bobot = 0; 
+                            break;
+                    }
+
+                    
+                    $bobot_kriteria[$id_aspek][$id_kriteria][] = array(
+                        'alternatif' => $id_alternatif,
+                        'gap' => $gap,
+                        'bobot' => $bobot,
+                        'jenis_factor' => $jenis_factor
+                    );
+                } else {
+                   
+                    echo "Error: " . $conn->error;
+                }
+            }
+        }
+    }
+
+
+    $nilaiCF = array(); 
+    $nilaiSF = array(); 
+    foreach ($bobot_kriteria as $id_aspek => $aspek) {
+        foreach ($aspek as $id_kriteria => $kriteria) {
+            foreach ($kriteria as $info) {
+                if ($info['jenis_factor'] == 'core') {
+                    if (!isset($nilaiCF[$id_aspek][$info['alternatif']])) {
+                        $nilaiCF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiCF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                } elseif ($info['jenis_factor'] == 'secondary') {
+                    if (!isset($nilaiSF[$id_aspek][$info['alternatif']])) {
+                        $nilaiSF[$id_aspek][$info['alternatif']] = 0;
+                    }
+                    $nilaiSF[$id_aspek][$info['alternatif']] += $info['bobot'];
+                }
+            }
+        }
+      
+    }
+
+   
+   $queryJumlahCF = $conn->query("SELECT id_aspek, COUNT(*) as jumlah_cf FROM kriteria WHERE jenis_factor = 'core' GROUP BY id_aspek");
+   $queryJumlahSF = $conn->query("SELECT id_aspek, COUNT(*) as jumlah_sf FROM kriteria WHERE jenis_factor = 'secondary' GROUP BY id_aspek");
+
+   $jumlahCFPerAspek = array();
+   $jumlahSFPerAspek = array();
+
+   if ($queryJumlahCF) {
+   while ($row = $queryJumlahCF->fetch_assoc()) {
+       $jumlahCFPerAspek[$row['id_aspek']] = $row['jumlah_cf'];
+       }
+   }
+
+   if ($queryJumlahSF) {
+   while ($row = $queryJumlahSF->fetch_assoc()) {
+       $jumlahSFPerAspek[$row['id_aspek']] = $row['jumlah_sf'];
+       }
+   }
+
+   
+   foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+       $jumlah_cf_aspek = isset($jumlahCFPerAspek[$id_aspek]) ? $jumlahCFPerAspek[$id_aspek] : 1;
+   foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+       $nilaiCF[$id_aspek][$alternatif] /= $jumlah_cf_aspek;
+       }
+   }
+
+   foreach ($nilaiSF as $id_aspek => $nilai_sf_per_aspek) {
+       $jumlah_sf_aspek = isset($jumlahSFPerAspek[$id_aspek]) ? $jumlahSFPerAspek[$id_aspek] : 1;
+   foreach ($nilai_sf_per_aspek as $alternatif => $nilai_sf) {
+       $nilaiSF[$id_aspek][$alternatif] /= $jumlah_sf_aspek;
+       }
+   }
+
+
+   
+    $hasilAkhir = array();
+    foreach ($nilaiCF as $id_aspek => $nilai_cf_per_aspek) {
+        foreach ($nilai_cf_per_aspek as $alternatif => $nilai_cf) {
+            $hasilAkhir[$id_aspek][$alternatif] = ($nilai_cf * 0.55) + ($nilaiSF[$id_aspek][$alternatif] * 0.45);
+        }
+    }
+
+    // Ambil nilai aspek dari database dan ubah ke desimal
+    $queryAspek = $conn->query("SELECT id_aspek, bobot FROM aspek");
+    if($queryAspek) {
+        $aspek_data = $queryAspek->fetch_all(MYSQLI_ASSOC);
+        $total_bobot = array_sum(array_column($aspek_data, 'bobot'));
+        $nilaiAspek = array();
+        foreach ($aspek_data as $data) {
+            $nilaiAspek[$data['id_aspek']] = $data['bobot'] / $total_bobot; // Ubah bobot menjadi desimal
+        }
+
+       
+        $perankingan = array();
+        foreach ($hasilAkhir as $id_aspek => $hasil_per_aspek) {
+            foreach ($hasil_per_aspek as $alternatif => $hasil) {
+                if (!isset($perankingan[$alternatif])) {
+                    $perankingan[$alternatif] = 0;
+                }
+                $perankingan[$alternatif] += $hasil * $nilaiAspek[$id_aspek];
+            }
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Perhitungan</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .container {
+            margin-top: 20px;
+        }
+        .btn-container {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Hasil Perhitungan</h1>
+
+        <!-- Tabel hasil akhir -->
+        <?php if(!empty($hasilAkhir)): ?>
+            <h2>Peringkat Hasil Akhir</h2>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Peringkat</th>
+                        <th>Nama Pegawai</th>
+                        <th>Hasil Akhir</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    // Sorting $perankingan by value (descending order)
+                    arsort($perankingan);
+
+                    // Counter for ranking
+                    $ranking = 1;
+
+                    // Display each result
+                    foreach ($perankingan as $alternatif => $hasil) {
+                        // Retrieve employee name from the database based on alternative ID
+                        $queryNamaPegawai = $conn->query("SELECT nama_pegawai FROM alternatif WHERE id_alternatif = $alternatif");
+                        if($queryNamaPegawai && $queryNamaPegawai->num_rows > 0) {
+                            $nama_pegawai = $queryNamaPegawai->fetch_assoc()['nama_pegawai'];
+                            // Display the result
+                            echo "<tr>";
+                            echo "<td>$ranking</td>";
+                            echo "<td>$nama_pegawai</td>";
+                            echo "<td>$hasil</td>";
+                            echo "</tr>";
+                            $ranking++;
+                        }
+                    }
+                    ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <div class="alert alert-info" role="alert">Belum ada hasil perhitungan yang tersedia.</div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Button Container -->
+    <div class="container btn-container">
+        <!-- Tombol kembali ke dashboard -->
+        <a href="dashboard.php" class="btn btn-primary">Kembali ke Dashboard</a>
+
+        <!-- Button untuk menyimpan tabel ke PDF -->
+        <button id="savePDF" class="btn btn-success">Simpan ke PDF</button>
+    </div>
+
+    <!-- Script untuk menyimpan tabel ke PDF -->
+    <script>
+    document.getElementById('savePDF').addEventListener('click', function() {
+        saveToPDF();
+    });
+
+    function saveToPDF() {
+        // Initialize jsPDF
+        const doc = new jsPDF();
+
+        // Add table content
+        const table = document.querySelector('table');
+        const tableData = doc.autoTableHtmlToJson(table);
+        doc.autoTable(tableData.columns, tableData.rows);
+
+        // Save the PDF
+        doc.save('hasil_perhitungan.pdf');
+    }
+    </script>
+</body>
+</html>
+</file>
+
+<file path="README.md">
+use PHP Natife and Profile Matching Method
+
+Make with ChatGPT 🙂
+</file>
+
+<file path="register.php">
+<?php
+// Menggunakan __DIR__ untuk path yang relatif
+include(__DIR__ . '/config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+    $nama_pengguna = $_POST['nama_pengguna'];
+    $role = 0; // Mengatur peran sebagai pengguna biasa secara default
+
+    // Menggunakan prepared statement untuk mencegah SQL injection
+    $query = "INSERT INTO pengguna (username, password, nama_pengguna, role) VALUES (?, ?, ?, ?)";
+    $stmt = $conn->prepare($query);
+
+    if ($stmt) {
+        // Menggunakan password_hash untuk mengamankan kata sandi
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        $stmt->bind_param('sssi', $username, $hashedPassword, $nama_pengguna, $role); // Mengikat peran ke parameter
+        $stmt->execute();
+
+        echo "Registrasi berhasil. Silakan login <a href='login.php'>di sini</a>.";
+    } else {
+        echo "Error: Gagal melakukan registrasi.";
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrasi Pengguna</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Registrasi Pengguna</h1>
+
+        <!-- Form registrasi -->
+        <form method="POST" action="" class="mt-3">
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Nama Pengguna:</label>
+                <input type="text" name="nama_pengguna" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Registrasi</button>
+        </form>
+
+        <div class="mt-3">
+            Sudah punya akun? <a href="login.php">Login di sini</a>
+        </div>
+    </div>
+</body>
+</html>
+</file>
+
+<file path="unauthorize.php">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unauthorized Access</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .container {
+            margin-top: 50px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Unauthorized Access</h1>
+        <div class="alert alert-danger" role="alert">
+            Maaf, Anda tidak memiliki izin untuk mengakses halaman ini.
+        </div>
+        <p>Silakan hubungi administrator jika Anda memerlukan bantuan.</p>
+        <a href="login.php" class="btn btn-primary">Kembali ke Halaman Login</a>
+    </div>
+</body>
+</html>
+</file>
+
+</files>

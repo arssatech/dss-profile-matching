@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Services;
 
 use PDO;
@@ -8,8 +7,8 @@ class ProfileMatchingService
 {
     private PDO $db;
 
-    // Pemetaan nilai GAP ke Bobot Nilai SPK Profile Matching
-    private array $gapMap = [
+    // Tabel Bobot Gap standar Profile Matching
+    private array $gapTable = [
         0  => 5.0,
         1  => 4.5,
        -1  => 4.0,
@@ -18,7 +17,7 @@ class ProfileMatchingService
         3  => 2.5,
        -3  => 2.0,
         4  => 1.5,
-       -4  => 1.0,
+       -4  => 1.0
     ];
 
     public function __construct(PDO $db)
@@ -27,97 +26,117 @@ class ProfileMatchingService
     }
 
     /**
-     * Menghitung nilai GAP (Selisih Nilai Profil Alternatif dengan Target Kriteria)
+     * Konversi selisih (Gap) ke Nilai Bobot
      */
-    public function calculateGap(float $nilaiActual, float $nilaiTarget): float
+    public function getWeightFromGap(int $gap): float
     {
-        return $nilaiActual - $nilaiTarget;
+        return $this->gapTable[$gap] ?? 1.0;
     }
 
     /**
-     * Mengonversi nilai GAP menjadi Bobot Nilai
+     * Menghitung seluruh skoring Profile Matching untuk semua alternatif/kandidat
      */
-    public function getWeightFromGap(float $gap): float
+    public function calculateAll(): array
     {
-        return $this->gapMap[(int)$gap] ?? 1.0;
-    }
-
-    /**
-     * Memproses Perhitungan Lengkap Profile Matching
-     */
-    public function processAll(): array
-    {
-        // 1. Ambil data Aspek, Kriteria, dan Alternatif beserta Nilainya
+        // 1. Ambil semua data aspek
         $aspekList = $this->db->query("SELECT * FROM aspek ORDER BY id_aspek ASC")->fetchAll();
-        $kriteriaList = $this->db->query("SELECT * FROM kriteria ORDER BY id_kriteria ASC")->fetchAll();
+
+        // 2. Ambil semua data kriteria
+        $kriteriaList = $this->db->query("SELECT * FROM kriteria ORDER BY id_aspek ASC, id_kriteria ASC")->fetchAll();
+
+        // Grouping kriteria berdasarkan id_aspek
+        $kriteriaByAspek = [];
+        foreach ($kriteriaList as $k) {
+            $kriteriaByAspek[$k['id_aspek']][] = $k;
+        }
+
+        // 3. Ambil semua alternatif
         $alternatifList = $this->db->query("SELECT * FROM alternatif ORDER BY id_alternatif ASC")->fetchAll();
 
-        // Ambil data nilai penilaian
-        $rawNilai = $this->db->query("SELECT * FROM penilaian")->fetchAll();
+        // 4. Ambil semua nilai sampel
+        $penilaianRaw = $this->db->query("SELECT * FROM penilaian")->fetchAll();
         $nilaiMap = [];
-        foreach ($rawNilai as $n) {
-            $nilaiMap[$n['id_alternatif']][$n['id_kriteria']] = (float)$n['nilai'];
+        foreach ($penilaianRaw as $p) {
+            $nilaiMap[$p['id_alternatif']][$p['id_kriteria']] = (int)$p['nilai'];
         }
 
         $results = [];
 
         foreach ($alternatifList as $alt) {
-            $idAlt = $alt['id_alternatif'];
-            $totalNilaiAkhir = 0;
-            $aspekResults = [];
+            $altId = $alt['id_alternatif'];
+            $totalFinalScore = 0;
+            $aspekScores = [];
 
-            foreach ($aspekList as $aspek) {
-                $idAspek = $aspek['id_aspek'];
-                $coreSum = 0; $coreCount = 0;
-                $secSum = 0;  $secCount = 0;
+            foreach ($aspekList as $asp) {
+                $aspId = $asp['id_aspek'];
+                $kriterias = $kriteriaByAspek[$aspId] ?? [];
 
-                // Filter kriteria sesuai aspek
-                foreach ($kriteriaList as $kriteria) {
-                    if ($kriteria['id_aspek'] != $idAspek) continue;
+                $coreSum = 0;
+                $coreCount = 0;
+                $secSum = 0;
+                $secCount = 0;
 
-                    $idKriteria = $kriteria['id_kriteria'];
-                    $actual = $nilaiMap[$idAlt][$idKriteria] ?? 0;
-                    $target = (float)$kriteria['target'];
+                $kriteriaDetails = [];
 
-                    $gap = $this->calculateGap($actual, $target);
+                foreach ($kriterias as $k) {
+                    $kId = $k['id_kriteria'];
+                    $val = $nilaiMap[$altId][$kId] ?? 0;
+                    $target = (int)$k['target'];
+                    $gap = $val - $target;
                     $weight = $this->getWeightFromGap($gap);
 
-                    if (strtolower($kriteria['type']) === 'core') {
+                    if (strtolower($k['type']) === 'core') {
                         $coreSum += $weight;
                         $coreCount++;
                     } else {
                         $secSum += $weight;
                         $secCount++;
                     }
+
+                    $kriteriaDetails[] = [
+                        'nama_kriteria' => $k['nama_kriteria'],
+                        'nilai' => $val,
+                        'target' => $target,
+                        'gap' => $gap,
+                        'bobot_gap' => $weight,
+                        'type' => $k['type']
+                    ];
                 }
 
-                $ncf = $coreCount > 0 ? ($coreSum / $coreCount) : 0; // Nilai Core Factor
-                $nsf = $secCount > 0 ? ($secSum / $secCount) : 0;   // Nilai Secondary Factor
+                $ncf = $coreCount > 0 ? ($coreSum / $coreCount) : 0;
+                $nsf = $secCount > 0 ? ($secSum / $secCount) : 0;
 
-                // Formula Total Aspek: 60% Core + 40% Secondary (atau atur sesuai standar proyek)
-                $nilaiTotalAspek = (0.6 * $ncf) + (0.4 * $nsf);
+                // Hitung Nilai Total Aspek (60% Core + 40% Secondary)
+                $nilaiTotalAspek = ($ncf * 0.60) + ($nsf * 0.40);
 
-                $aspekResults[$idAspek] = [
+                // Kontribusi ke nilai akhir berdasarkan Bobot Aspek (%)
+                $bobotAspekPersen = (float)$asp['bobot'] / 100;
+                $totalFinalScore += ($nilaiTotalAspek * $bobotAspekPersen);
+
+                $aspekScores[$aspId] = [
+                    'nama_aspek' => $asp['nama_aspek'],
                     'ncf' => $ncf,
                     'nsf' => $nsf,
-                    'total_aspek' => $nilaiTotalAspek
+                    'nilai_total_aspek' => $nilaiTotalAspek,
+                    'kriteria_details' => $kriteriaDetails
                 ];
-
-                // Akumulasi ke Nilai Akhir berdasarkan Bobot Aspek (%)
-                $totalNilaiAkhir += $nilaiTotalAspek * ((float)$aspek['bobot'] / 100);
             }
 
             $results[] = [
-                'id_alternatif'   => $idAlt,
+                'id_alternatif' => $altId,
                 'nama_alternatif' => $alt['nama_alternatif'],
-                'aspek_detail'    => $aspekResults,
-                'nilai_akhir'     => $totalNilaiAkhir
+                'aspek_scores' => $aspekScores,
+                'final_score' => $totalFinalScore
             ];
         }
 
-        // Urutkan berdasarkan nilai akhir tertinggi (Perankingan)
-        usort($results, fn($a, $b) => $b['nilai_akhir'] <=> $a['nilai_akhir']);
+        // Urutkan (Ranking) dari nilai tertinggi ke terendah
+        usort($results, fn($a, $b) => $b['final_score'] <=> $a['final_score']);
 
-        return $results;
+        return [
+            'aspek_list' => $aspekList,
+            'kriteria_list' => $kriteriaList,
+            'rankings' => $results
+        ];
     }
 }

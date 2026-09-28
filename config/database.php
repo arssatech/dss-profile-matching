@@ -1,20 +1,28 @@
 <?php
 
-class Database 
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Dotenv\Dotenv;
+
+$dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->safeLoad();
+
+class Database
 {
     private static ?PDO $instance = null;
 
-    public static function getConnection(): PDO 
+    public static function getConnection(): PDO
     {
         if (self::$instance === null) {
-            // Load environment variables (bisa pakai getenv atau parsing manual jika belum pakai composer)
-            $host    = $_ENV['DB_HOST'] ?? 'localhost';
-            $db      = $_ENV['DB_NAME'] ?? 'spk_profile_matching';
-            $user    = $_ENV['DB_USER'] ?? 'root';
-            $pass    = $_ENV['DB_PASS'] ?? '';
-            $charset = $_ENV['DB_CHARSET'] ?? 'utf8mb4';
+            $host = $_ENV['DB_HOST'] ?? 'localhost';
+            $port = $_ENV['DB_PORT'] ?? '3306';
+            $db   = $_ENV['DB_NAME'] ?? 'spk_profile_matching';
+            $user = $_ENV['DB_USER'] ?? 'root';
+            $pass = $_ENV['DB_PASS'] ?? '';
+            $charset = 'utf8mb4';
 
-            $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+            $dsn = "mysql:host={$host};port={$port};dbname={$db};charset={$charset}";
+
             $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -24,7 +32,8 @@ class Database
             try {
                 self::$instance = new PDO($dsn, $user, $pass, $options);
             } catch (PDOException $e) {
-                throw new PDOException($e->getMessage(), (int)$e->getCode());
+                error_log("Database Connection Error: " . $e->getMessage());
+                throw new PDOException("Koneksi ke database gagal.");
             }
         }
 

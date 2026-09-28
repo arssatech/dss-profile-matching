@@ -1,11 +1,2 @@
-# Repomix & Documentation Output
-repomix-output.*
-
-# Environment & Temp Files
-*.log
+/vendor/
 .env
-.DS_Store
-
-# IDE & Editor Files
-.vscode/
-.idea/

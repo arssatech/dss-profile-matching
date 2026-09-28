@@ -1,83 +1,58 @@
 <?php
-session_start();
+require_once __DIR__ . '/vendor/autoload.php';
 
-// Menggunakan __DIR__ untuk path yang relatif
-include(__DIR__ . '/config.php');
+use App\Middleware\CsrfMiddleware;
 
-// Cek apakah pengguna sudah login, jika ya, arahkan ke dashboard
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Redirect ke dashboard jika sudah login
 if (isset($_SESSION['username'])) {
-    header('Location: dashboard.php');
+    header("Location: dashboard.php");
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    // Verifikasi login menggunakan prepared statement
-    $query = "SELECT * FROM pengguna WHERE username = ? LIMIT 1";
-    $stmt = $conn->prepare($query);
-
-    if ($stmt) {
-        $stmt->bind_param('s', $username);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user = $result->fetch_assoc();
-
-        // Verifikasi kata sandi menggunakan password_verify
-        if ($user && password_verify($password, $user['password'])) {
-            // Login berhasil
-            $_SESSION['username'] = $username;
-            $_SESSION['role'] = $user['role']; // Simpan peran pengguna di dalam sesi
-            header('Location: dashboard.php');
-            exit();
-        } else {
-            // Login gagal
-            echo "<div class='alert alert-danger' role='alert'>Login gagal. Periksa kembali username dan password.</div>";
-        }
-
-        // Tutup pernyataan
-        $stmt->close();
-    } else {
-        // Handle kesalahan pernyataan
-        echo "<div class='alert alert-danger' role='alert'>Error in statement preparation.</div>";
-    }
-}
+$csrfToken = CsrfMiddleware::generateToken();
+$error = $_GET['error'] ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Login - SPK Profile Matching</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="container mt-5">
+<body class="bg-light d-flex align-items-center vh-100">
+    <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h1 class="card-title text-center">Login</h1>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" action="">
-                            <div class="form-group">
-                                <label for="username">Username:</label>
-                                <input type="text" name="username" id="username" class="form-control" required>
-                            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <h4 class="card-title text-center mb-4">SPK Login</h4>
+                        
+                        <?php if ($error === 'invalid_credentials'): ?>
+                            <div class="alert alert-danger">Username atau password salah!</div>
+                        <?php elseif ($error === 'system_error'): ?>
+                            <div class="alert alert-danger">Terjadi kesalahan sistem. Silakan coba lagi.</div>
+                        <?php endif; ?>
 
-                            <div class="form-group">
-                                <label for="password">Password:</label>
-                                <input type="password" name="password" id="password" class="form-control" required>
+                        <form action="auth.php" method="POST">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" name="username" id="username" required autocomplete="off">
                             </div>
-
-                            <button type="submit" class="btn btn-primary btn-block">Login</button>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" name="password" id="password" required>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">Login</button>
                         </form>
-                    </div>
-                    <div class="card-footer text-muted">
-                        Belum punya akun? <a href="register.php">Daftar sekarang</a>
                     </div>
                 </div>
             </div>

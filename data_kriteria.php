@@ -1,103 +1,106 @@
 <?php
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/config/database.php';
 
-// Menggunakan __DIR__ untuk path yang relatif
-include('config.php');
+use App\Middleware\AuthMiddleware;
+use App\Middleware\CsrfMiddleware;
 
-// Sertakan file auth.php
-include('auth.php');
+// Proteksi Halaman
+AuthMiddleware::checkAuth();
+
+$csrfToken = CsrfMiddleware::generateToken();
+$db = Database::getConnection();
+
+// Fetch Data Aspek
+$stmt = $db->query("SELECT * FROM aspek ORDER BY id_aspek ASC");
+$aspekList = $stmt->fetchAll();
 ?>
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Kriteria</title>
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <!-- Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <style>
-        .navbar-nav .nav-link.active {
-            font-weight: bold; /* Menjadikan tulisan lebih gelap */
-        }
-        .container {
-            margin-top: 80px; /* Sesuaikan dengan tinggi navbar */
-        }
-    </style>
+    <title>Data Aspek - SPK Profile Matching</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
+<body class="bg-light">
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Data Aspek Penilaian</h3>
+            <div>
+                <a href="dashboard.php" class="btn btn-secondary me-2">Dashboard</a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambah">
+                    + Tambah Aspek
+                </button>
+            </div>
+        </div>
 
-<?php include('navbar.php'); ?>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <table class="table table-bordered table-striped align-middle mb-0">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th style="width: 80px;">No</th>
+                            <th>Nama Aspek</th>
+                            <th style="width: 150px;">Bobot (%)</th>
+                            <th style="width: 150px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($aspekList)): ?>
+                            <?php foreach ($aspekList as $index => $row): ?>
+                                <tr>
+                                    <td><?= $index + 1 ?></td>
+                                    <td><?= htmlspecialchars($row['nama_aspek']) ?></td>
+                                    <td><?= number_format($row['bobot'], 2) ?>%</td>
+                                    <td>
+                                        <a href="delete_aspek.php?id_aspek=<?= $row['id_aspek'] ?>" 
+                                           class="btn btn-sm btn-danger" 
+                                           onclick="return confirm('Yakin ingin menghapus aspek ini?')">Hapus</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Belum ada data aspek.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<div class="container">
-    <h1>Data Kriteria</h1>
-    <table class="table table-bordered">
-        <thead class="thead-light">
-            <tr>
-                <th scope="col">No</th>
-                <th scope="col">Kode Kriteria</th>
-                <th scope="col">Aspek</th>
-                <th scope="col">Kriteria</th>
-                <th scope="col">Jenis Factor</th>
-                <th scope="col">Nilai Target</th>
-                <th scope="col">Aksi</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php
-            // Query untuk mengambil data kriteria dan informasi aspek yang terkait dari database
-            $query = "SELECT k.id_kriteria, k.kode_kriteria, a.nama_aspek, k.nama_kriteria, k.jenis_factor, k.nilai_target 
-                      FROM kriteria k
-                      INNER JOIN aspek a ON k.id_aspek = a.id_aspek";
-            $result = $conn->query($query);
+    <!-- Modal Tambah Aspek -->
+    <div class="modal fade" id="modalTambah" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="create_aspek.php" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tambah Aspek</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        
+                        <div class="mb-3">
+                            <label for="nama_aspek" class="form-label">Nama Aspek</label>
+                            <input type="text" class="form-control" name="nama_aspek" id="nama_aspek" required autocomplete="off">
+                        </div>
+                        <div class="mb-3">
+                            <label for="bobot" class="form-label">Bobot (%)</label>
+                            <input type="number" step="0.01" class="form-control" name="bobot" id="bobot" required min="0" max="100">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-            // Periksa apakah query berhasil dieksekusi dengan benar
-            if ($result) {
-                // Periksa apakah ada data kriteria
-                if ($result->num_rows > 0) {
-                    // Iterasi untuk menampilkan data kriteria
-                    $no = 1;
-                    while ($row = $result->fetch_assoc()) {
-                        echo "<tr>
-                                <td>" . $no++ . "</td>
-                                <td>" . $row['kode_kriteria'] . "</td>
-                                <td>" . $row['nama_aspek'] . "</td>
-                                <td>" . $row['nama_kriteria'] . "</td>
-                                <td>" . $row['jenis_factor'] . "</td>
-                                <td>" . $row['nilai_target'] . "</td>
-                                <td>";
-                        // Tampilkan tombol edit dan delete hanya jika pengguna adalah admin
-                        if (isAdmin()) {
-                            echo "<a href='edit_kriteria.php?id={$row['id_kriteria']}' class='btn btn-sm btn-primary'>Edit</a>
-                                  <a href='delete_kriteria.php?id={$row['id_kriteria']}' class='btn btn-sm btn-danger'>Delete</a>";
-                        }
-                        echo "</td>
-                            </tr>";
-                    }
-                } else {
-                    echo "<tr><td colspan='7'>Tidak ada data kriteria.</td></tr>";
-                }
-            } else {
-                echo "<tr><td colspan='7'>Error: " . $conn->error . "</td></tr>";
-            }
-            ?>
-        </tbody>
-    </table>
-    <?php
-    // Tampilkan tombol tambah hanya jika pengguna adalah admin
-    if (isAdmin()) {
-        echo "<a href='create_kriteria.php' class='btn btn-success'>Tambah Kriteria</a>";
-    }
-    ?>
-</div>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-<?php
-// Tutup koneksi database
-$conn->close();
-?>

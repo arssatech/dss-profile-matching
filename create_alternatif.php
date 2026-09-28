@@ -1,28 +1,43 @@
 <?php
+require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/config/database.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id_alternatif = filter_input(INPUT_POST, 'id_alternatif', FILTER_VALIDATE_INT);
-    $nama_alternatif = trim(filter_input(INPUT_POST, 'nama_alternatif', FILTER_SANITIZE_SPECIAL_CHARS));
+use App\Middleware\AuthMiddleware;
+use App\Middleware\CsrfMiddleware;
 
-    if ($id_alternatif && !empty($nama_alternatif)) {
-        try {
-            $db = Database::getConnection();
-            $stmt = $db->prepare("UPDATE alternatif SET nama_alternatif = :nama WHERE id_alternatif = :id");
-            $stmt->execute([
-                'nama' => $nama_alternatif,
-                'id' => $id_alternatif
-            ]);
+// Proteksi Autentikasi
+AuthMiddleware::checkAuth();
 
-            header("Location: alternatif.php?status=success_update");
-            exit();
-        } catch (PDOException $e) {
-            error_log("Error Edit Alternatif: " . $e->getMessage());
-            header("Location: alternatif.php?status=error");
-            exit();
-        }
-    } else {
-        header("Location: alternatif.php?status=invalid_input");
-        exit();
-    }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: data_alternatif.php");
+    exit();
+}
+
+// 1. Validasi CSRF Token
+$token = $_POST['csrf_token'] ?? '';
+if (!CsrfMiddleware::validateToken($token)) {
+    http_response_code(403);
+    die("Akses Ditolak: Invalid CSRF Token!");
+}
+
+// 2. Filter & Sanitasi Input
+$namaAlternatif = trim(filter_input(INPUT_POST, 'nama_alternatif', FILTER_SANITIZE_SPECIAL_CHARS));
+
+if (empty($namaAlternatif)) {
+    header("Location: data_alternatif.php?status=invalid");
+    exit();
+}
+
+// 3. Eksekusi Query PDO
+try {
+    $db = Database::getConnection();
+    $stmt = $db->prepare("INSERT INTO alternatif (nama_alternatif) VALUES (:nama)");
+    $stmt->execute([':nama' => $namaAlternatif]);
+
+    header("Location: data_alternatif.php?status=created");
+    exit();
+} catch (PDOException $e) {
+    error_log("Error create_alternatif: " . $e->getMessage());
+    header("Location: data_alternatif.php?status=error");
+    exit();
 }
