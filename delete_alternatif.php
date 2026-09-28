@@ -1,27 +1,22 @@
 <?php
+require_once __DIR__ . '/config/database.php';
 
-// Menggunakan __DIR__ untuk path yang relatif
-include(__DIR__ . '/config.php');
+$id_alternatif = filter_input(INPUT_GET, 'id_alternatif', FILTER_VALIDATE_INT);
 
-// Periksa apakah parameter ID alternatif diberikan dalam URL
-if(isset($_GET['id']) && !empty($_GET['id'])){
-    // Ambil ID alternatif dari parameter URL
-    $id_alternatif = $_GET['id'];
+if ($id_alternatif) {
+    try {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("DELETE FROM alternatif WHERE id_alternatif = :id");
+        $stmt->execute(['id' => $id_alternatif]);
 
-    // Query untuk menghapus data alternatif dari database
-    $query = "DELETE FROM alternatif WHERE id_alternatif = $id_alternatif";
-
-    // Eksekusi query
-    if ($conn->query($query) === TRUE) {
-        // Jika berhasil dihapus, redirect ke halaman data alternatif
-        header("Location: data_alternatif.php");
-        exit;
-    } else {
-        // Jika terjadi kesalahan, tampilkan pesan kesalahan
-        echo "Error deleting record: " . $conn->error;
+        header("Location: alternatif.php?status=success_delete");
+        exit();
+    } catch (PDOException $e) {
+        error_log("Error Delete Alternatif: " . $e->getMessage());
+        header("Location: alternatif.php?status=error");
+        exit();
     }
+} else {
+    header("Location: alternatif.php?status=invalid_id");
+    exit();
 }
-
-// Tutup koneksi database
-$conn->close();
-?>

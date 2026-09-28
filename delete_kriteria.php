@@ -1,31 +1,22 @@
 <?php
-// Mulai sesi PHP
-session_start();
+require_once __DIR__ . '/config/database.php';
 
+$id_kriteria = filter_input(INPUT_GET, 'id_kriteria', FILTER_VALIDATE_INT);
 
+if ($id_kriteria) {
+    try {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("DELETE FROM kriteria WHERE id_kriteria = :id");
+        $stmt->execute(['id' => $id_kriteria]);
 
-// Menggunakan __DIR__ untuk path yang relatif
-include(__DIR__ . '/config.php');
-
-// Periksa apakah parameter ID kriteria diberikan dalam URL
-if(isset($_GET['id']) && !empty($_GET['id'])){
-    // Ambil ID kriteria dari parameter URL
-    $id_kriteria = $_GET['id'];
-
-    // Query untuk menghapus data kriteria dari database
-    $query = "DELETE FROM kriteria WHERE id_kriteria = $id_kriteria";
-
-    // Eksekusi query
-    if ($conn->query($query) === TRUE) {
-        // Jika berhasil dihapus, redirect ke halaman data kriteria
-        header("Location: data_kriteria.php");
-        exit;
-    } else {
-        // Jika terjadi kesalahan, tampilkan pesan kesalahan
-        echo "Error deleting record: " . $conn->error;
+        header("Location: kriteria.php?status=success_delete");
+        exit();
+    } catch (PDOException $e) {
+        error_log("Error Delete Kriteria: " . $e->getMessage());
+        header("Location: kriteria.php?status=error");
+        exit();
     }
+} else {
+    header("Location: kriteria.php?status=invalid_id");
+    exit();
 }
-
-// Tutup koneksi database
-$conn->close();
-?>
