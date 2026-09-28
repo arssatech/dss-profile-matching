@@ -1,147 +1,207 @@
-# Sistem Pendukung Keputusan (SPK) Penilaian Karyawan - Profile Matching
+# 🎯 Decision Support System (SPK) - Profile Matching Engine
 
-Sistem Pendukung Keputusan (SPK) berbasis web yang dibangun menggunakan **PHP Native** dan **MySQL**. Aplikasi ini digunakan untuk melakukan penilaian serta perankingan karyawan/pegawai berdasarkan kriteria dan aspek tertentu menggunakan metode **Profile Matching** (Pencocokan Profil).
+Sistem Pendukung Keputusan (SPK) berbasis Web modular yang dibangun menggunakan **PHP Native** dan **MySQL/SQLite**. Aplikasi ini dirancang untuk melakukan proses penilaian, kalkulasi gap, penentuan bobot, hingga perangkingan alternatif secara objektif, terotomatisasi, dan presisi 100%.
 
----
+## 📌 Problem Statement & Objective
 
-## 🛠️ Fitur Utama
+* **Problem**: Proses seleksi kandidat atau evaluasi kinerja secara manual rentan terhadap keterlambatan, kecenderungan subjektif, dan kekeliruan kalkulasi matematis (*human-error*) saat mengolah data dalam jumlah besar di spreadsheet.
 
-- **Autentikasi & Hak Akses:** Keamanan login menggunakan `password_verify` dengan pemisahan peran antara Admin dan User biasa.
-- **Manajemen Master Data (CRUD):**
-  - **Data Pengguna:** Pengelolaan akun pengguna dan otorisasi sistem.
-  - **Data Aspek:** Pengaturan aspek-aspek penilaian beserta bobot persentasenya.
-  - **Data Kriteria:** Pengaturan kriteria untuk setiap aspek, nilai target ideal, serta pengelompokan jenis faktor (*Core Factor* / *Secondary Factor*).
-  - **Data Alternatif:** Pengelolaan data karyawan/pegawai yang akan dinilai.
-- **Penilaian Interaktif:** Form pengisian nilai kriteria berbasis AJAX/jQuery per aspek secara terstruktur.
-- **Kalkulasi Otomatis:** Pemrosesan otomatis mencakup kalkulasi *Gap*, pemetaan bobot, perhitungan *Core Factor* & *Secondary Factor*, hingga perolehan *Final Ranking*.
+* **Objective**: Membangun engine SPK berbasis web yang menerapkan kalkulasi matematis Profile Matching secara presisi, akurat, serta aman dari ancaman keamanan web dasar (SQL Injection & CSRF).
 
----
+## ✨ Fitur Utama & Keunggulan
 
-## 📂 Struktur Direktori
+* **Autentikasi & Hak Akses:**
+  * Login aman dengan proteksi sesi `auth.php` dan `unauthorize.php`.
+  * Pendaftaran pengguna baru melalui `register.php`.
 
-```text
-.
-├── algo1.php                 # Skrip pengujian awal algoritma Profile Matching
-├── algo2_perhitungan.php     # Skrip modul eksperimen kalkulasi
-├── algo3.php                 # Skrip kalkulasi alternatif Profile Matching
-├── auth.php                  # Middleware autentikasi & otorisasi hak akses
-├── config.php                # File konfigurasi database MySQL
-├── create_alternatif.php     # Form tambah data karyawan/alternatif
-├── create_aspek.php          # Form tambah data aspek penilaian
-├── create_kriteria.php       # Form tambah data kriteria penilaian
-├── create_penilaian.php      # Form input nilai kriteria karyawan
-├── data_alternatif.php       # Tabel dan pengelolaan data karyawan
-├── data_aspek.php            # Tabel dan pengelolaan data aspek
-├── data_kriteria.php         # Tabel dan pengelolaan data kriteria
-├── data_pengguna.php         # Tabel dan pengelolaan data pengguna
-├── delete_*.php              # Skrip modul penghapusan data
-├── edit_*.php                # Skrip modul pembaruan data
-├── index.php                 # Dashboard / Halaman utama
-├── login.php                 # Halaman autentikasi masuk
-├── logout.php                # Skrip terminasi sesi user
-├── perhitungan.php           # Modul pemrosesan utama & tabel hasil perankingan
-├── register.php              # Halaman pendaftaran pengguna baru
-└── includes/                 # Komponen antarmuka (Header, Footer, Sidebar, Navbar)
-```
+* **Manajemen Master Data (CRUD):**
+  * **Data Pengguna (`data_pengguna.php`):** Pengelolaan akun dan otorisasi sistem.
+  * **Data Aspek (`data_aspek.php`):** Pengaturan aspek penilaian beserta bobot persentasenya.
+  * **Data Kriteria (`data_kriteria.php`):** Pengaturan kriteria per aspek, nilai target ideal, serta pengelompokan jenis faktor (*Core Factor* / *Secondary Factor*).
+  * **Data Alternatif (`data_alternatif.php`):** Pengelolaan data kandidat/karyawan yang akan dinilai.
+  * **Data Penilaian (`data_penilaian.php`):** Form pengisian nilai kriteria alternatif per aspek.
 
----
+* **Kalkulasi & Perangkingan Otomatis:**
+  * Pemrosesan *Gap*, pemetaan bobot, perhitungan *Core Factor* (CF) & *Secondary Factor* (SF), hingga laporan perangkingan akhir pada `perhitungan.php`, `hasil.php`, dan `data_hasil_akhir.php`.
 
-## 📚 Landasan Teori: Metode Profile Matching
+* **Security-First Architecture:**
+  * **PDO Prepared Statements:** Proteksi penuh terhadap SQL Injection.
+  * **CSRF Token Middleware:** Proteksi form dari Cross-Site Request Forgery pada handler `create_*.php`, `edit_*.php`, dan `delete_*.php`.
 
-**Profile Matching** (Pencocokan Profil) adalah metode pengambilan keputusan yang berasumsi bahwa terdapat tingkat efektivitas ideal yang harus dipenuhi oleh setiap alternatif (karyawan), bukan sekadar tingkat kompetensi minimal yang harus dicapai.
+* **Zero-XAMPP Portability:**
+  * Dilengkapi script `migrate.php` & `seed.php` berbasis PHP CLI untuk inisialisasi database instan.
 
-Dalam prosesnya, metode ini membandingkan antara profil karyawan dengan profil jabatan/target yang dibutuhkan.
+## 📚 Landasan Teori & Formula Profile Matching
 
-### Tahapan Perhitungan
+**Profile Matching** (Pencocokan Profil) adalah metode pengambilan keputusan yang membandingkan antara profil alternatif dengan profil target yang dibutuhkan.
 
-#### 1. Perhitungan Selisih (Gap)
-Menghitung selisih antara nilai kriteria yang dimiliki oleh alternatif ($N_{\text{kriteria}}$) dengan nilai target kriteria ($N_{\text{target}}$) yang ditetapkan:
+### 1. Perhitungan Selisih (Gap)
 
-$$\text{Gap} = N_{\text{target}} - N_{\text{kriteria}}$$
+Menghitung selisih antara nilai alternatif ($N_{\text{alternatif}}$) dengan nilai target kriteria ($N_{\text{target}}$):
 
-#### 2. Pembobotan Nilai Gap
-Nilai *gap* yang diperoleh dikonversikan ke dalam bobot nilai standar sesuai dengan ketetapan berikut:
+$$
+\text{Gap} = N_{\text{alternatif}} - N_{\text{target}}
+$$
+
+### 2. Pembobotan Nilai Gap
+
+Nilai *gap* dikonversikan ke dalam bobot nilai standar:
 
 | Selisih (Gap) | Bobot Nilai | Keterangan |
 | :---: | :---: | :--- |
-| $0$ | $5.0$ | Tidak ada selisih (Kompetensi sesuai target) |
-| $1$ | $4.5$ | Kompetensi individu kelebihan 1 tingkat |
-| $-1$ | $4.0$ | Kompetensi individu kekurangan 1 tingkat |
-| $2$ | $3.5$ | Kompetensi individu kelebihan 2 tingkat |
-| $-2$ | $3.0$ | Kompetensi individu kekurangan 2 tingkat |
-| $3$ | $2.5$ | Kompetensi individu kelebihan 3 tingkat |
-| $-3$ | $2.0$ | Kompetensi individu kekurangan 3 tingkat |
-| $4$ | $1.5$ | Kompetensi individu kelebihan 4 tingkat |
-| $-4$ | $1.0$ | Kompetensi individu kekurangan 4 tingkat |
+| $0$ | $5.0$ | Tidak ada selisih (Sesuai target) |
+| $1$ | $4.5$ | Kelebihan 1 tingkat |
+| $-1$ | $4.0$ | Kekurangan 1 tingkat |
+| $2$ | $3.5$ | Kelebihan 2 tingkat |
+| $-2$ | $3.0$ | Kekurangan 2 tingkat |
+| $3$ | $2.5$ | Kelebihan 3 tingkat |
+| $-3$ | $2.0$ | Kekurangan 3 tingkat |
+| $4$ | $1.5$ | Kelebihan 4 tingkat |
+| $-4$ | $1.0$ | Kekurangan 4 tingkat |
 
-#### 3. Perhitungan Core Factor (CF) dan Secondary Factor (SF)
-Kriteria penilaian dibagi menjadi dua kelompok:
-- **Core Factor (CF):** Kriteria utama/vital yang paling menentukan performa.
-- **Secondary Factor (SF):** Kriteria pendukung/pelengkap.
+### 3. Perhitungan Core Factor (NCF) dan Secondary Factor (NSF)
 
-Rumus perhitungan nilai rata-rata tiap faktor per aspek:
+$$
+\text{NCF} = \frac{\sum \text{Bobot Nilai Gap (Core Factor)}}{\sum \text{Jumlah Kriteria Core Factor}}
+$$
 
-$$N_{CF} = \frac{\sum N_{CF}}{\sum i_{CF}}$$
+$$
+\text{NSF} = \frac{\sum \text{Bobot Nilai Gap (Secondary Factor)}}{\sum \text{Jumlah Kriteria Secondary Factor}}
+$$
 
-$$N_{SF} = \frac{\sum N_{SF}}{\sum i_{SF}}$$
+### 4. Perhitungan Nilai Total Aspek
 
-*Keterangan:*
-- $N_{CF}, N_{SF}$: Nilai rata-rata Core Factor dan Secondary Factor.
-- $\sum N_{CF}, \sum N_{SF}$: Jumlah total bobot nilai Gap pada Core Factor dan Secondary Factor.
-- $\sum i_{CF}, \sum i_{SF}$: Jumlah total item kriteria Core Factor dan Secondary Factor.
+$$
+N_{\text{Aspek}} = (\text{NCF} \times 60\%) + (\text{NSF} \times 40\%)
+$$
 
-#### 4. Perhitungan Nilai Total Aspek
-Nilai akhir tiap aspek dihitung dengan mengombinasikan proporsi *Core Factor* ($55\%$) dan *Secondary Factor* ($45\%$):
+### 5. Perhitungan Nilai Akhir Total (Ranking)
 
-$$N_{\text{Aspek}} = (N_{CF} \times 55\%) + (N_{SF} \times 45\%)$$
+$$
+\text{Total Nilai} = \sum \left(N_{\text{Aspek}} \times \text{Bobot Persen Aspek}\right)
+$$
 
-#### 5. Perhitungan Nilai Akhir & Perankingan (Total Rank)
-Nilai akhir seluruh alternatif diperoleh dari akumulasi perkalian nilai total aspek dengan bobot persentase dari masing-masing aspek ($W_{\text{Aspek}}$):
+## 📐 Arsitektur & Diagram Sistem
 
-$$\text{Total Nilai} = \sum \left(N_{\text{Aspek}} \times W_{\text{Aspek}}\right)$$
+### 1. Flowchart Sistem
 
-Alternatif kemudian diurutkan (*ranking*) berdasarkan nilai tertinggi hingga terendah.
+```text
+[ Start ] ──► [ Login / Register ] ──► [ Dashboard ]
+                                             │
+    ┌────────────────────────────────────────┼────────────────────────────────────────┐
+    ▼                                        ▼                                        ▼
+[ Data Aspek & Kriteria ]          [ Data Alternatif ]                   [ Input Penilaian ]
+    │                                        │                                        │
+    └────────────────────────────────────────┴────────────────────────────────────────┘
+                                             │
+                                             ▼
+                                [ Engine Profile Matching ]
+                               (Gap ➔ NCF/NSF ➔ Total Score)
+                                             │
+                                             ▼
+                                [ Perhitungan & Hasil Akhir ]
+```
 
----
+### 2. Entity Relationship Diagram (ERD)
 
-## 🚀 Panduan Instalasi
+```text
++------------------+         +------------------+
+|      aspek       |         |     kriteria     |
++------------------+         +------------------+
+| PK id_aspek      |1       N| PK id_kriteria   |
+|    nama_aspek    |<--------| FK id_aspek      |
+|    bobot         |         |    nama_kriteria |
++------------------+         |    target        |
+                             |    type (core/sec|
+                             +--------+---------+
+                                      | 1
++------------------+                  |
+|    alternatif    |                  |
++------------------+                  | N
+| PK id_alternatif |1        N+-------+----------+
+|    nama_alt      |<--------|    penilaian     |
++------------------+         +------------------+
+                             | PK id_penilaian  |
+                             | FK id_alternatif |
+                             | FK id_kriteria   |
+                             |    nilai         |
+                             +------------------+
+```
 
-### Prasyarat System
-- Web Server (XAMPP / Laragon / Apache / Nginx)
-- PHP versi 7.4 atau lebih baru
-- Database Server MySQL / MariaDB
+## 📂 Struktur Direktori Proyek
 
-### Langkah-Langkah Instalasi
+```text
+.
+├── config/                  # Konfigurasi Database (Singleton PDO)
+├── config.php               # System Environment & Global Settings
+├── src/                     # Core Business Logic & Security Middleware
+├── vendor/                  # Composer Autoload Dependencies
+│
+├── index.php                # Landing Page / Redirect Handler
+├── login.php / logout.php   # Autentikasi Login & Logout
+├── register.php             # Form Registrasi User
+├── auth.php                 # Middleware Otorisasi Hak Akses
+├── unauthorize.php          # Halaman Error Akses Ditolak
+├── dashboard.php            # Control Panel Utama
+├── navbar.php               # Komponen Layout Navigasi Header
+│
+├── data_aspek.php           # Interface Kelola Master Aspek
+├── data_kriteria.php        # Interface Kelola Master Kriteria
+├── data_alternatif.php      # Interface Kelola Master Alternatif
+├── data_penilaian.php       # Form Input Nilai Alternatif
+├── data_pengguna.php        # Interface Kelola Data User
+├── data_hasil_akhir.php     # Ringkasan Laporan Penilaian
+├── perhitungan.php          # Modul Breakdown Math Profile Matching
+├── hasil.php                # Laporan Perangkingan Akhir
+│
+├── create_*.php             # Action Handlers Tambah Data (Insert)
+├── edit_*.php               # Action Handlers Ubah Data (Update)
+├── delete_*.php             # Action Handlers Hapus Data (Delete)
+├── get_*.php                # AJAX & Data Fetching Endpoint Handlers
+│
+├── migrate.php              # Script Migrasi Database Otomatis (PHP CLI)
+├── seed.php                 # Script Seeder Data Awal
+└── README.md                # Dokumentasi Utama Repositori
+```
 
-1. **Clone Repository**
+## ⚡ Cara Jalankan Proyek
+
+### **Metode 1: CLI Server (Tanpa XAMPP / Menggunakan SQLite)**
+
+1. **Clone Repositori:**
    ```bash
    git clone https://github.com/username/spk-profile-matching.git
    cd spk-profile-matching
    ```
 
-2. **Pengaturan Database**
-   - Buat database baru di MySQL (misalnya: `spk_profile_matching`).
-   - *Import* skema file database (berformat `.sql`) ke dalam database baru tersebut.
-   - Buka dan ubah konfigurasi koneksi pada berkas `config.php`:
-     ```php
-     $host = "localhost";
-     $user = "root";
-     $pass = "";
-     $db   = "spk_profile_matching";
-     ```
+2. **Install Autoload Dependencies:**
+   ```bash
+   composer install
+   ```
 
-3. **Menjalankan Aplikasi**
-   - Pindahkan folder proyek ke dalam direktori server web (`htdocs` pada XAMPP atau `www` pada Laragon).
-   - Akses aplikasi melalui browser di alamat:
-     ```text
-     http://localhost/spk-profile-matching
-     ```
+3. **Jalankan Migrasi Database & Seeder:**
+   ```bash
+   php migrate.php
+   php seed.php
+   ```
 
----
+4. **Jalankan Development Server:**
+   ```bash
+   php -S localhost:8000
+   ```
+   Akses via browser di `http://localhost:8000`.
 
-## 🛠️ Teknologi yang Digunakan
+### **Metode 2: Web Server Konvensional (XAMPP / Laragon + MySQL)**
 
-- **Backend:** PHP Native
-- **Database:** MySQL / MariaDB
-- **Frontend:** HTML5, CSS3, Bootstrap 4, FontAwesome
-- **Interaktivitas:** JavaScript, jQuery, AJAX
+1. Pastikan Service **MySQL** di Control Panel XAMPP / Laragon sudah **Start/Aktif**.
+2. Pindahkan folder proyek ke `htdocs` (XAMPP) atau `www` (Laragon).
+3. Buat database di phpMyAdmin (misal: `spk_profile_matching`).
+4. Sesuaikan kredensial database di `config/database.php` atau `config.php`.
+5. Jalankan `php migrate.php` atau import file `.sql` ke database MySQL tersebut.
+6. Akses melalui browser di `http://localhost/spk-profile-matching`.
+
+## 🔑 Akun Default Login
+
+| Username | Password | Hak Akses |
+| :--- | :--- | :--- |
+| `admin` | `admin123` | Administrator |
